@@ -1,5 +1,7 @@
 # Notes — HTTPS only, correct types, and no stale app shell (the service worker handles offline).
 RewriteEngine On
+# The site is pulled from Git: never serve the repository itself
+RedirectMatch 404 /\.git
 RewriteCond %{HTTPS} off
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
