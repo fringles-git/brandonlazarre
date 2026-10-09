@@ -1,0 +1,14 @@
+# Notes — HTTPS only, correct types, and no stale app shell (the service worker handles offline).
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+AddType application/manifest+json .webmanifest
+AddType text/javascript .js
+
+<FilesMatch "^(index\.html|sw\.js|manifest\.webmanifest)$">
+  Header set Cache-Control "no-cache"
+</FilesMatch>
+<FilesMatch "^(?!sw\.js$).*\.(png|js)$">
+  Header set Cache-Control "public, max-age=604800"
+</FilesMatch>
