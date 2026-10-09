@@ -1,5 +1,5 @@
 /* Notes — offline support. Bump VERSION on every release: the app then offers "Recharger". */
-const VERSION = 'notes-20261009101803';
+const VERSION = 'notes-20261009122437';
 const SHARE_CACHE = 'notes-share';   // files shared to Notes, picked up by the app
 const FILES = ['./', './index.html', './manifest.webmanifest', './vendor/pdf.min.js', './vendor/pdf.worker.min.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
