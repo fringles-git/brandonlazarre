@@ -1,6 +1,7 @@
 /* Notes — offline support. Bump VERSION on every release: the app then offers "Recharger". */
-const VERSION = 'notes-20261009141051';
+const VERSION = 'notes-20261009142917';
 const SHARE_CACHE = 'notes-share';   // files shared to Notes, picked up by the app
+const EXTRAS = 'notes-extras';       // vendor/extra: big optional libraries, downloaded the first time they are used, kept across updates
 const FILES = ['./', './index.html', './manifest.webmanifest', './vendor/pdf.min.js', './vendor/pdf.worker.min.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 
@@ -10,7 +11,7 @@ self.addEventListener('install', event => {
 self.addEventListener('message', event => { if (event.data === 'skip-waiting') self.skipWaiting(); });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys()
-    .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== SHARE_CACHE).map(k => caches.delete(k))))
+    .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== SHARE_CACHE && k !== EXTRAS).map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -34,6 +35,13 @@ self.addEventListener('fetch', event => {
   // The app itself (any navigation, whatever its ?query): cache first, so it opens offline
   if (request.mode === 'navigate') {
     event.respondWith(caches.match('./index.html').then(hit => hit || fetch(request)));
+    return;
+  }
+  if (url.pathname.includes('/vendor/extra/')) {
+    event.respondWith(caches.open(EXTRAS).then(cache => cache.match(request).then(hit => hit || fetch(request).then(response => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    }))));
     return;
   }
   event.respondWith(caches.match(request).then(hit => hit || fetch(request)));
