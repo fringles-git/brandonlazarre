@@ -1,0 +1,121 @@
+/* Notes — design tokens. Liquid glass over a calm ambient field. */
+:root {
+  color-scheme: light dark;
+
+  /* Ambient field behind everything */
+  --color-bg: light-dark(#eef0f6, #08090c);
+  --ambient-1: light-dark(#ffe9a8, #3a2f0c);
+  --ambient-2: light-dark(#cfe0ff, #0d1f3d);
+  --ambient-3: light-dark(#f5d6ec, #2a1024);
+
+  /* Ink */
+  --color-text: light-dark(#16171b, #f2f3f7);
+  --color-text-muted: light-dark(#5f6370, #9a9eab);
+  --color-text-faint: light-dark(#8b8f9b, #6c707c);
+  --color-line: light-dark(#16171b14, #ffffff14);
+
+  /* Surfaces */
+  --color-card: light-dark(#ffffffc7, #1d1e24b8);
+  --color-card-solid: light-dark(#ffffff, #18191e);
+  --color-fill: light-dark(#16171b0d, #ffffff12);
+  --color-fill-strong: light-dark(#16171b17, #ffffff1f);
+  --color-editor: light-dark(#f7f8fbf2, #0e0f13f2);
+
+  /* Glass */
+  --glass: light-dark(#ffffff8c, #26272e80);
+  --glass-strong: light-dark(#ffffffc4, #1e1f25c9);
+  --glass-edge: light-dark(#ffffffb3, #ffffff26);
+  --glass-blur: blur(22px) saturate(190%);
+  --glass-shine: linear-gradient(180deg, light-dark(#ffffffb3, #ffffff2e) 0%, #fff0 42%, #fff0 72%, light-dark(#ffffff40, #ffffff0f) 100%);
+  --glass-shadow:
+    inset 0 1px 0 light-dark(#ffffffe6, #ffffff33),
+    inset 0 -1px 0 light-dark(#ffffff59, #ffffff0d),
+    0 1px 2px light-dark(#1218300f, #0000004d),
+    0 10px 30px light-dark(#1218301f, #00000073);
+  --glass-press: light-dark(#ffffffa6, #ffffff1f);
+
+  /* Accent: Notes yellow; select: system blue */
+  --color-accent: #f4c542;
+  --color-accent-deep: #e0ac1c;
+  --color-on-accent: #1a1608;
+  --color-accent-glow: 0 8px 24px light-dark(#f4c54270, #f4c54240);
+  --color-select: light-dark(#0062cc, #0a84ff);
+  --color-select-tint: light-dark(#0062cc1a, #0a84ff2e);
+  --color-danger: light-dark(#d70015, #ff6961);
+  --color-success: light-dark(#1e7a35, #40a970);
+  --color-highlight: light-dark(#fbe7a1, #5a4610);
+  --color-scrim: light-dark(#10121a2e, #0000006b);
+
+  /* Folders: dot color, tint, readable text */
+  --folder-1: #4f86e8; --folder-1-tint: light-dark(#eaf1fdd9, #17243ad9); --folder-1-text: light-dark(#1d64e1, #6696eb);
+  --folder-2: #e9824f; --folder-2-tint: light-dark(#fdeee6d9, #33211ad9); --folder-2-text: light-dark(#b64c17, #e9824f);
+  --folder-3: #3fa56e; --folder-3-tint: light-dark(#e6f4ecd9, #14291dd9); --folder-3-text: light-dark(#2e7950, #40a970);
+  --folder-4: #9171db; --folder-4-tint: light-dark(#f1ecfbd9, #241d38d9); --folder-4-text: light-dark(#7850d3, #a185e0);
+  --folder-5: #db5f96; --folder-5-tint: light-dark(#fbeaf2d9, #331a26d9); --folder-5-text: light-dark(#c62d71, #df70a1);
+  --folder-6: #2fa4ad; --folder-6-tint: light-dark(#e2f4f5d9, #112b2dd9); --folder-6-text: light-dark(#22767d, #2fa4ad);
+  --folder-7: #a2845e; --folder-7-tint: light-dark(#f3eee7d9, #2b241bd9); --folder-7-text: light-dark(#7f6749, #ab906e);
+  --folder-8: #7c7c84; --folder-8-tint: light-dark(#eeeef0d9, #232326d9); --folder-8-text: light-dark(#636369, #94949a);
+
+  /* Space */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --edge: 12px;
+  --gutter: 16px;
+
+  /* Size */
+  --tap: 44px;
+  --dock-btn: 48px;
+  --fab: 58px;
+  --layout-max: 1180px;
+  --layer-w: 380px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+  --kb: 0px;
+  --dock-bottom: calc(var(--safe-bottom) + var(--space-2) + var(--kb));
+  --dock-space: calc(var(--fab) + var(--safe-bottom) + var(--space-8));
+
+  /* Shape: capsules for floating controls, concentric rounding for panels */
+  --radius-pill: 999px;
+  --radius-panel: 30px;
+  --radius-card: 22px;
+  --radius-row: 14px;
+  --radius-chip: 12px;
+  --radius-sm: 9px;
+
+  /* Type */
+  --font: 'Figtree Variable', Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: ui-serif, 'New York', 'Iowan Old Style', Charter, Georgia, serif;
+  --font-notes: var(--font);
+  --text-2xs: 10.5px;
+  --text-xs: 12px;
+  --text-sm: 13.5px;
+  --text-md: 15px;
+  --text-base: 16px;
+  --text-lg: 17px;
+  --text-xl: 21px;
+  --text-title: clamp(30px, 8vw, 38px);
+  --leading: 1.45;
+
+  /* Motion */
+  --ease: cubic-bezier(.32, .72, 0, 1);
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --fast: 140ms;
+  --base: 240ms;
+  --slow: 380ms;
+}
+
+:root[data-theme='light'] { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
+body[data-font='serif'] { --font-notes: var(--font-serif); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --fast: 1ms; --base: 1ms; --slow: 1ms; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass: var(--glass-strong); --glass-blur: none; }
+}
