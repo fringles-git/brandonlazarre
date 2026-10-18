@@ -23,7 +23,8 @@ const useWide = () => useSyncExternalStore(cb => { wide.addEventListener('change
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || !isSecureContext || import.meta.env.DEV) return;
-  navigator.serviceWorker.register(new URL('sw.js', location.href).href).then(reg => {
+  navigator.serviceWorker.register(new URL('sw.js', location.href).href, { updateViaCache: 'none' }).then(reg => {
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
     const offer = (w: ServiceWorker) => toast('Nouvelle version disponible.', () => w.postMessage('skip-waiting'), 'Recharger');
     if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
     reg.addEventListener('updatefound', () => {

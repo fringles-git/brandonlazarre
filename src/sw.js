@@ -32,8 +32,15 @@ self.addEventListener('fetch', event => {
     return;
   }
   if (request.method !== 'GET' || url.origin !== location.origin) return;
+  // The app shell: network first (always the latest deploy online), cache when offline or slow
   if (request.mode === 'navigate') {
-    event.respondWith(caches.match('./').then(hit => hit || fetch(request)));
+    event.respondWith((async () => {
+      try {
+        const fresh = await Promise.race([fetch(request, { cache: 'no-store' }), new Promise((_, no) => setTimeout(no, 3000))]);
+        if (fresh.ok) (await caches.open(VERSION)).put('./', fresh.clone());
+        return fresh;
+      } catch { return (await caches.match('./')) || fetch(request); }
+    })());
     return;
   }
   if (url.pathname.includes('/vendor/extra/')) {
