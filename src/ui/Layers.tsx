@@ -1,17 +1,17 @@
 /** Bottom sheets that pop over the list or the editor, from the thumb side: create, note menu, library, pickers, PIN… */
 import { useShallow } from 'zustand/react/shallow';
 import type { LayerMode, Note } from '../types';
-import { FOLDER_COLORS, KIND_ICON, KINDS, TEMPLATES } from '../config';
+import { FOLDER_COLORS, KIND_ICON, KIND_TONE, KINDS, TEMPLATES } from '../config';
 import { checkStats, dueCards, entities, flashcards, outline, backlinks, stripCheck, tagsOf } from '../markdown';
 import { countIn, folderColor, get, menuNote, openNote, readableNotes, tabFolder, tabLabel, useStore, type State } from '../store';
 import {
-  clearChecked, closeLayer, dailyNote, deleteCollection, deleteFolder, endSelecting, fromTemplate, menuDeleteForever, menuHide, menuPin,
+  clearChecked, closeLayer, dailyNote, deleteCollection, deleteFolder, fromTemplate, menuDeleteForever, menuHide, menuPin,
   menuRestore, menuTrash, moveSelection, moveTo, openLayer, openPicker, patchLayer, renameCollection, renameFolder, resetPin, restoreVersion,
-  setFolderColor, setPref, setTab, startSelecting, submitFolder, submitPin, toggleEditFolders, toggleNewFolder, uncheckList, editorRefs,
+  setFolderColor, setPref, setTab, submitFolder, submitPin, toggleEditFolders, toggleNewFolder, uncheckList, editorRefs,
 } from '../actions';
 import { clearReminder, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
 import { caretTop, dayOrTime, dayTime, finePointer, plural } from '../utils';
-import { InlineForm, Layer, Option, Row, Segmented } from './kit';
+import { InlineForm, Layer, Option, Row, Segmented, shown } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
 
@@ -20,7 +20,7 @@ const Hint = ({ children }: { children: React.ReactNode }) => <p className="laye
 
 function TabRow({ tab, trailing, pressed, onClick }: { tab: string; trailing?: React.ReactNode; pressed?: boolean; onClick: () => void }) {
   const color = useStore(s => (tabFolder(tab) ? folderColor(tabFolder(tab), s.folderColors) : undefined));
-  return <Row icon={KIND_ICON[tab] || { f: 'folder', t: 'hash', c: 'filter' }[tab[0]] || 'folder'} label={tabLabel(tab)} trailing={trailing} pressed={pressed} color={color} onClick={onClick} />;
+  return <Row icon={KIND_ICON[tab] || { f: 'folder', t: 'hash', c: 'filter' }[tab[0]] || 'folder'} label={tabLabel(tab)} trailing={trailing} pressed={pressed} color={color} tone={KIND_TONE[tab]} onClick={onClick} />;
 }
 const NewFolder = () => <InlineForm onSubmit={submitFolder} button="Créer le dossier" inputProps={{ placeholder: 'Nom du dossier', 'aria-label': 'Nom du dossier' }} />;
 
@@ -171,49 +171,94 @@ function CollectionEditRow({ name }: { name: string }) {
     </div>
   );
 }
+/** The Library: a full page of views, folders, tags and collections — tiles instead of rows. */
 function Library() {
   const s = useStore(useShallow(s => ({
-    tab: s.prefs.tab, folders: s.folders, newFolder: s.layer.newFolder, edit: s.layer.editFolders, unlocked: s.hiddenUnlocked, notes: s.notes, collections: s.prefs.collections,
+    tab: s.prefs.tab, folders: s.folders, newFolder: s.layer.newFolder, edit: s.layer.editFolders, unlocked: s.hiddenUnlocked,
+    notes: s.notes, collections: s.prefs.collections, colors: s.folderColors,
   })));
-  const state = get(), shows = (t: string) => s.edit || s.tab === t || countIn(state, t) > 0;
-  const folders = s.folders.filter(f => shows('f:' + f)), linked = s.notes.some(n => !n.deleted && !n.locked && entities(n).links.length);
+  const state = get(), live = s.notes.filter(n => !n.deleted && !n.locked), linked = live.some(n => entities(n).links.length);
+  const views = ['all', ...KINDS.filter(k => s.tab === k || countIn(state, k) > 0)];
   const tags = new Map<string, number>();
-  s.notes.filter(n => !n.deleted && !n.locked).forEach(n => tagsOf(n).forEach(t => tags.set(t, (tags.get(t) || 0) + 1)));
-  const tab = (t: string) => <TabRow key={t} tab={t} trailing={countIn(state, t)} pressed={s.tab === t} onClick={() => setTab(t)} />;
+  live.forEach(n => tagsOf(n).forEach(t => tags.set(t, (tags.get(t) || 0) + 1)));
+  const top = Math.max(1, ...tags.values());
+  const tile = (t: string, label = tabLabel(t), count: number | string = countIn(state, t), onClick = () => setTab(t)) => (
+    <button key={t} className="lib-tile" data-tone={KIND_TONE[t]} aria-pressed={s.tab === t} onClick={onClick}>
+      <span className="lib-bubble"><Icon name={KIND_ICON[t] || 'graph'} /></span>
+      <b>{shown(count) ? count : ''}</b>
+      <span>{label}</span>
+    </button>
+  );
+  const recent = (f: string) => live.filter(n => n.folder === f).sort((a, b) => b.updated - a.updated);
   return (
-    <>
-      <Title>Bibliothèque</Title>
-      <h4>Vues</h4>
-      {tab('all')}
-      {KINDS.filter(k => s.tab === k || countIn(state, k) > 0).map(tab)}
-      {linked && <Row icon="graph" label="Carte des liens" onClick={() => { closeLayer(); openMap(); }} />}
-      <hr />
-      {(shows('none') || folders.length > 0) && <>
-        <h4>Dossiers</h4>
-        {shows('none') && tab('none')}
-        {folders.map(f => (s.edit ? <FolderEditRow key={f} folder={f} /> : tab('f:' + f)))}
-        <hr />
-      </>}
-      {!!s.collections?.length && <>
-        <h4>Collections</h4>
-        {s.collections.map(c => (s.edit ? <CollectionEditRow key={c.name} name={c.name} /> : tab('c:' + c.name)))}
-        <hr />
-      </>}
-      {tags.size > 0 && !s.edit && <>
-        <h4>Étiquettes</h4>
-        {[...tags].sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([t, n]) => <TabRow key={t} tab={'t:' + t} trailing={n} pressed={s.tab === 't:' + t} onClick={() => setTab('t:' + t)} />)}
-        <hr />
-      </>}
-      {shows('trash') && tab('trash')}
-      <TabRow tab="locked" trailing={s.unlocked ? countIn(state, 'locked') : ''} pressed={s.tab === 'locked'} onClick={() => setTab('locked')} />
-      <hr />
-      {s.newFolder ? <NewFolder /> : (
-        <div className="layer-foot">
-          <button className="icon-btn" onClick={toggleEditFolders} aria-label="Modifier les dossiers" aria-pressed={s.edit}><Icon name="edit" /></button>
-          <button className="icon-btn" onClick={toggleNewFolder} aria-label="Nouveau dossier"><Icon name="folderNew" /></button>
+    <div className="lib">
+      <header className="lib-head">
+        <div>
+          <h2>Bibliothèque</h2>
+          <p>{plural(live.length, 'note', 'notes')}{s.folders.length ? ' · ' + plural(s.folders.length, 'dossier', 'dossiers') : ''}</p>
         </div>
+        <button className="icon-btn glass" onClick={toggleEditFolders} aria-label="Modifier les dossiers" aria-pressed={s.edit}><Icon name="edit" /></button>
+        <button className="icon-btn glass" onClick={closeLayer} aria-label="Fermer"><Icon name="close" /></button>
+      </header>
+
+      <section className="lib-section">
+        <h4>Vues</h4>
+        <div className="lib-tiles">
+          {views.map(t => tile(t))}
+          {linked && tile('map', 'Carte des liens', '', () => { closeLayer(); openMap(); })}
+        </div>
+      </section>
+
+      <section className="lib-section">
+        <h4>Dossiers</h4>
+        {s.edit ? <div className="lib-rows">{s.folders.map(f => <FolderEditRow key={f} folder={f} />)}</div> : (
+          <div className="lib-folders">
+            {countIn(state, 'none') > 0 && (
+              <button className="lib-folder" aria-pressed={s.tab === 'none'} onClick={() => setTab('none')}>
+                <span className="lib-folder-name">{tabLabel('none')}</span><b>{countIn(state, 'none')}</b>
+              </button>
+            )}
+            {s.folders.map(f => {
+              const notes = recent(f);
+              return (
+                <button key={f} className="lib-folder" data-color={folderColor(f, s.colors)} aria-pressed={s.tab === 'f:' + f} onClick={() => setTab('f:' + f)}>
+                  <span className="lib-folder-name">{f}</span>
+                  {notes.length > 0 && <b>{notes.length}</b>}
+                  <span className="lib-peek">{notes.slice(0, 2).map(n => <i key={n.id}>{n.title || 'Sans titre'}</i>)}</span>
+                </button>
+              );
+            })}
+            {!s.newFolder && <button className="lib-folder is-new" onClick={toggleNewFolder}><Icon name="folderNew" /><span>Nouveau dossier</span></button>}
+          </div>
+        )}
+        {s.newFolder && <NewFolder />}
+      </section>
+
+      {tags.size > 0 && !s.edit && (
+        <section className="lib-section">
+          <h4>Étiquettes</h4>
+          <div className="lib-cloud">
+            {[...tags].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr')).map(([t, n]) => (
+              <button key={t} className="lib-tag" aria-pressed={s.tab === 't:' + t} onClick={() => setTab('t:' + t)}
+                style={{ '--weight': n / top } as React.CSSProperties}>#{t}{n > 1 && <small>{n}</small>}</button>
+            ))}
+          </div>
+        </section>
       )}
-    </>
+
+      {!!s.collections?.length && (
+        <section className="lib-section">
+          <h4>Collections</h4>
+          {s.edit ? <div className="lib-rows">{s.collections.map(c => <CollectionEditRow key={c.name} name={c.name} />)}</div>
+            : <div className="chips">{s.collections.map(c => <button key={c.name} className="chip" aria-pressed={s.tab === 'c:' + c.name} onClick={() => setTab('c:' + c.name)}><Icon name="filter" />{c.name}</button>)}</div>}
+        </section>
+      )}
+
+      <section className="lib-section lib-tiles is-small">
+        {tile('locked', tabLabel('locked'), s.unlocked ? countIn(state, 'locked') : '')}
+        {countIn(state, 'trash') > 0 && tile('trash')}
+      </section>
+    </div>
   );
 }
 function Picker() {
@@ -328,14 +373,12 @@ function View() {
       <h4>Ordre</h4>
       <Option pref="dir" value="desc" label="Récentes d’abord" />
       <Option pref="dir" value="asc" label="Anciennes d’abord" />
-      <h4>Afficher</h4>
-      <Option pref="by" value="all" label="Toutes les notes" />
-      <Option pref="by" value="me" label="Créées par moi" />
-      <Option pref="by" value="ai" label="Créées avec l’IA" note={String(ai)} />
-      <hr />
-      <button className="option" onClick={() => { closeLayer(); if (get().selecting) endSelecting(); else startSelecting(); }}>
-        <span>Sélectionner des notes</span><Icon name="selectAll" />
-      </button>
+      {ai > 0 && <>
+        <h4>Afficher</h4>
+        <Option pref="by" value="all" label="Toutes les notes" />
+        <Option pref="by" value="me" label="Créées par moi" />
+        <Option pref="by" value="ai" label="Créées avec l’IA" note={String(ai)} />
+      </>}
     </>
   );
 }
@@ -360,7 +403,8 @@ const LAYERS: Record<LayerMode, { label: string; Content: () => React.ReactNode 
 export function LayerHost() {
   const mode = useStore((s: State) => s.layer.mode), def = mode ? LAYERS[mode] : null;
   return (
-    <Layer open={!!mode} onClose={closeLayer} label={def?.label || ''} className="layer glass" data={{ 'data-mode': mode || undefined }}>
+    <Layer open={!!mode} onClose={closeLayer} label={def?.label || ''} className={'layer glass' + (mode === 'library' ? ' lib-page' : '')}
+      anchor={mode !== 'library'} data={{ 'data-mode': mode || undefined }}>
       {def && <def.Content />}
     </Layer>
   );

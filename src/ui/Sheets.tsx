@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/react/shallow';
 import type { Note, SheetMode } from '../types';
-import { CHANGE_KINDS, CREDITS, CURRENT, findRelease, halfYear, RELEASE_LIST, releasesSince, type Release } from '../config';
+import { CHANGE_KINDS, CREDITS, CURRENT, findRelease, RELEASE_LIST, releasesSince, type Release } from '../config';
 import { backlinks, dueCards, entities, flashcards, hostOf, masteredCount, nextDue, titleIndex, withScheme } from '../markdown';
 import { urlOf } from '../media';
 import { folderColor, noteById, readableNotes, tabFolder, tabLabel, tabNotes, useStore } from '../store';
@@ -13,7 +13,7 @@ import {
   retryMissed, reveal, startStudy, startTour, studyNotes, toggleOcr, openMap,
 } from '../features';
 import { bytes, clock, day, dayTime, fmt, plural, time } from '../utils';
-import { Chip, Formatted, HANDS, Layer, Row, Segmented, THEMES } from './kit';
+import { Chip, Formatted, HANDS, Layer, Row, Segmented, Switch, THEMES } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
 
@@ -214,14 +214,14 @@ function Settings() {
       <div>
         {s.canInstall && <><h4>Application</h4><button className="option" onClick={install}>Installer l’app sur cet appareil</button></>}
         <h4>Recherche</h4>
-        <button className="option" onClick={toggleOcr} aria-pressed={s.ocr}><span>Texte dans les photos</span><small>{s.ocr ? plural(s.read, 'photo lue', 'photos lues') : '≈ 5 Mo, sur l’appareil'}</small></button>
+        <Switch on={s.ocr} label="Texte dans les photos" note={s.ocr ? (s.read ? plural(s.read, 'photo lue', 'photos lues') : '') : '≈ 5 Mo, sur l’appareil'} onClick={toggleOcr} />
         <h4>Sauvegarde</h4>
         <button className="option" onClick={exportBackup}><span>Exporter les notes</span><small>{lastBackupLabel(s.lastBackup)}</small></button>
         <button className="option" onClick={() => pickFile('backup')}>Importer une sauvegarde</button>
         {s.info && <button className="option" onClick={persistStorage} disabled={s.info.persisted}><span>{s.info.persisted ? 'Stockage protégé' : 'Protéger le stockage'}</span><small>{bytes(s.info.used)}</small></button>}
         <h4>Notes</h4>
         <button className="option" onClick={startTour}>Visite guidée</button>
-        <button className="option" onClick={() => useStore.setState({ sheet: 'about' })}><span>À propos</span><small>{halfYear(CURRENT)} · {CURRENT.version}</small></button>
+        <button className="option" onClick={() => useStore.setState({ sheet: 'about' })}><span>À propos</span><small>{CURRENT.version}</small></button>
       </div>
     </div>
   );
@@ -269,7 +269,7 @@ function About() {
     <>
       <div className="about-app">
         <img className="about-icon" src="icons/icon-192.png" alt="" />
-        <div><p className="about-name">Notes</p><p className="about-version">{halfYear(CURRENT)} · version {CURRENT.version}{when && <> · {day(when)} {time(when)}</>}</p></div>
+        <div><p className="about-name">Notes</p><p className="about-version">Version {CURRENT.version}{when && <> · {day(when)} {time(when)}</>}</p></div>
       </div>
       <div className="chips">
         <Chip icon="tour" label="Visite guidée" onClick={startTour} />

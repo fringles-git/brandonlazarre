@@ -42,6 +42,12 @@ export const KIND_ICON: Record<string, string> = {
   all: 'all', none: 'folder', locked: 'lock', trash: 'trash',
 };
 
+/** Semantic tones (system colors): same meaning everywhere — red records & deletes, orange dates, green photos… */
+export const KIND_TONE: Record<string, string> = {
+  all: 'yellow', week: 'purple', study: 'indigo', lists: 'blue', dated: 'orange', links: 'teal', photos: 'green',
+  audio: 'pink', pdfs: 'red', none: 'gray', locked: 'gray', trash: 'red', map: 'teal',
+};
+
 export const TAB_LABEL: Record<string, string> = {
   all: 'Tout', week: 'Cette semaine', lists: 'Listes', dated: 'Avec une date', links: 'Liens', photos: 'Photos',
   audio: 'Notes vocales', pdfs: 'PDF', study: 'À réviser', none: 'Non catégorisé', trash: 'Récemment supprimé', locked: 'Notes masquées',
@@ -99,6 +105,22 @@ const RELEASES: Omit<Release, 'version'>[] = [
     date: '2026-10-18',
     changes: {
       new: [
+        'Récap en haut de l’accueil : à venir, à réviser, à faire, photo récente, souvenir',
+        'Bibliothèque en pleine page : vues en tuiles, dossiers illustrés, nuage d’étiquettes',
+        'Couleurs système avec un sens fixe : rouge pour le micro et la suppression, orange pour les dates, vert pour les photos…',
+      ],
+      better: [
+        'Sur tablette : cartes plus grandes, vue liste sur deux colonnes, menus ouverts à côté du bouton qui les appelle',
+        'Interrupteurs et sélecteurs qui glissent ; petites animations aux coches et aux choix',
+        'Sélection plus compacte ; les compteurs à zéro sont masqués',
+      ],
+      fix: ['La page se met à jour au rechargement, sans rester sur l’ancienne version'],
+    },
+  },
+  {
+    date: '2026-10-18',
+    changes: {
+      new: [
         'Verre liquide : îlots flottants translucides sur un fond calme',
         'Deux îlots au pouce : Bibliothèque et Réglages d’un côté ; Recherche, micro et + de l’autre, inversés pour les gauchers',
         'Le + crée une note en une touche ; appui long pour liste, photo, modèles et import',
@@ -143,7 +165,7 @@ const RELEASES: Omit<Release, 'version'>[] = [
       ],
     },
   },
-  { date: '2026-10-09', changes: { new: ['Numéros de version datés : année.mois.jour.n, dans la ligne 26H2'] } },
+  { date: '2026-10-09', changes: { new: ['Numéros de version datés : année.mois.jour.n'] } },
   { date: '2026-10-09', legacy: '2.2.0', changes: { new: ['Quoi de neuf après une mise à jour', 'Journal des modifications en frise'] } },
   {
     date: '2026-10-09', legacy: '2.1.0',
@@ -169,10 +191,6 @@ export const RELEASE_LIST: Release[] = RELEASES.map((r, i) => {
   return { ...r, version: d ? `${y % 100}.${m}.${d}.${n}` : r.legacy! };
 });
 export const CURRENT = RELEASE_LIST[0];
-export const halfYear = (r: Release) => {
-  const [y, m] = r.date.split('-').map(Number);
-  return `${y % 100}H${m > 6 ? 2 : 1}`;
-};
 export const findRelease = (v: string) => RELEASE_LIST.find(r => r.version === v || r.legacy === v);
 export const releasesSince = (v: string) => {
   const r = findRelease(v);

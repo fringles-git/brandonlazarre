@@ -97,7 +97,7 @@ function SelectionDock() {
     <button className={cls} onClick={onClick} aria-label={aria} {...extra}><Icon name={icon} /><span>{label}</span></button>
   );
   return (
-    <nav className="dock thumb-row" aria-label="Sélection">
+    <nav className="dock thumb-row is-compact" aria-label="Sélection">
       <div className="island glass sel-bar" role="toolbar" aria-label="Actions de sélection">
         {btn('selectAll', s.all ? 'Aucun' : 'Tout', s.all ? 'Tout désélectionner' : 'Tout sélectionner', selectAll, { 'aria-pressed': s.all, disabled: !s.total })}
         {btn('trash', s.armed ? 'Confirmer ?' : 'Supprimer', s.armed ? 'Confirmer la suppression de ' + plural(s.count, 'note', 'notes') : s.trash ? 'Supprimer définitivement la sélection' : 'Supprimer la sélection',

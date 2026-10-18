@@ -14,7 +14,7 @@ import { Dock } from './ui/Dock';
 import { Editor } from './ui/Editor';
 import { FileInputs } from './ui/Files';
 import { LayerHost } from './ui/Layers';
-import { Header, InfoBar, NoteList } from './ui/List';
+import { Header, InfoBar, NoteList, Recap } from './ui/List';
 import { PrintArea, SheetHost, Toast } from './ui/Sheets';
 import { Tour, Welcome } from './ui/Welcome';
 
@@ -83,6 +83,7 @@ function App() {
       <div className="ambient" aria-hidden="true" />
       <div className="page" inert={covered || undefined}>
         <Header />
+        <Recap />
         <InfoBar />
         <NoteList onShown={analyse} />
       </div>

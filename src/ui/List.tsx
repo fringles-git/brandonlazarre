@@ -3,13 +3,13 @@ import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { useShallow } from 'zustand/react/shallow';
 import type { Note } from '../types';
 import { CONFIG } from '../config';
-import { checkStats, dueCards, plainText, snippet } from '../markdown';
+import { checkStats, dueCards, entities, parseCheck, plainText, snippet } from '../markdown';
 import { firstAtt, urlOf } from '../media';
-import { countIn, folderColor, inTrash, tabFolder, tabLabel, useStore, visibleNotes } from '../store';
+import { countIn, folderColor, inTrash, readableNotes, tabFolder, tabLabel, useStore, visibleNotes } from '../store';
 import { changePin, clearByFilter, emptyTrash, goHome, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
-import { backupDue, currentHint, dismissHint, exportBackup, playCard } from '../features';
+import { backupDue, currentHint, dismissHint, exportBackup, playCard, startStudy } from '../features';
 import { consumeClick } from '../gestures';
-import { bytes, clock, daysAgo, dayTime, finePointer, plural, relativeDay } from '../utils';
+import { bytes, clock, day, daysAgo, dayTime, eventDate, finePointer, fullDay, plural, relativeDay } from '../utils';
 import { FolderTag, Formatted, Highlight } from './kit';
 import { Icon } from './icons';
 
@@ -24,7 +24,7 @@ export function Header() {
       <div className="header-bar">
         {s.tab !== 'all' && <button className="back-chip glass" onClick={goHome} aria-label="Toutes les notes"><Icon name="back" /><span>Notes</span></button>}
         <h1 id="page-title" data-color={folder ? folderColor(folder, s.colors) : undefined} onClick={goHome}>
-          {title}<span className="title-count" aria-hidden="true">{count}</span>
+          {title}{count > 0 && <span className="title-count" aria-hidden="true">{count}</span>}
         </h1>
         <button className={'icon-btn glass' + (changed ? ' has-dot' : '')} id="view-button" onClick={() => openLayer('view')}
           aria-haspopup="dialog" aria-label={'Affichage : vue, tri, filtre, sélection' + (changed ? ' (modifié)' : '')} disabled={s.selecting}>
@@ -59,6 +59,69 @@ export function InfoBar() {
     s.ios && <button key="ios" className="pill" onClick={() => openLayer('ios-install')}>Protéger mes notes sur iPhone</button>,
   ].filter(Boolean);
   return pills.length ? <div className="info-bar">{pills}</div> : null;
+}
+
+/* ---------- Récap: what matters today, at a glance (only what exists) ---------- */
+type Widget = { key: string; tone: string; icon: string; label: string; title: string; detail?: string; img?: string; onClick: () => void };
+function widgets(notes: Note[]): Widget[] {
+  const now = Date.now(), out: Widget[] = [];
+  const soon = notes.flatMap(n => [
+    ...(n.remind && !n.remindDone && n.remind > now ? [{ n, at: n.remind, time: true }] : []),
+    ...entities(n).dates.filter(d => +d.start >= now - 36e5 * 12).map(d => ({ n, at: +d.start, time: d.hasTime })),
+  ]).filter(x => x.at < now + 14 * 864e5).sort((a, b) => a.at - b.at);
+  if (soon.length) out.push({
+    key: 'soon', tone: 'orange', icon: 'calendar', label: 'À venir', title: soon[0].n.title || 'Sans titre',
+    detail: eventDate(new Date(soon[0].at), soon[0].time) + (soon.length > 1 ? ' · +' + (soon.length - 1) : ''), onClick: () => open(soon[0].n.id),
+  });
+  const due = notes.filter(n => dueCards(n).length), cards = due.reduce((t, n) => t + dueCards(n).length, 0);
+  if (cards) out.push({ key: 'study', tone: 'indigo', icon: 'study', label: 'À réviser', title: plural(cards, 'carte', 'cartes'), detail: plural(due.length, 'note', 'notes'), onClick: () => startStudy(due) });
+  const todo = notes.map(n => ({ n, left: n.body.split('\n').map(parseCheck).filter(c => c && !c.done && c.text.trim()) }))
+    .filter(x => x.left.length).sort((a, b) => b.n.updated - a.n.updated);
+  if (todo.length) out.push({
+    key: 'todo', tone: 'blue', icon: 'checklist', label: 'À faire', title: todo[0].n.title || 'Sans titre',
+    detail: todo[0].left.slice(0, 2).map(c => c!.text).join(' · ') + (todo.reduce((t, x) => t + x.left.length, 0) > 2 ? '…' : ''), onClick: () => open(todo[0].n.id),
+  });
+  const media = notes.filter(n => n.created > now - 7 * 864e5 && n.atts.some(a => a.type === 'image' || a.type === 'audio')).sort((a, b) => b.created - a.created)[0];
+  if (media) {
+    const photo = firstAtt(media, 'image'), audio = firstAtt(media, 'audio');
+    out.push({
+      key: 'media', tone: photo ? 'green' : 'pink', icon: photo ? 'image' : 'audio', label: photo ? 'Photo récente' : 'Note vocale',
+      title: media.title || 'Sans titre', detail: audio?.duration ? clock(Math.round(audio.duration)) : day(media.created), img: photo && urlOf(photo), onClick: () => open(media.id),
+    });
+  }
+  const old = notes.filter(n => n.updated < now - 30 * 864e5 && (n.title || n.body).trim());
+  if (old.length) {
+    const pick = old[Math.floor(now / 864e5) % old.length], ago = daysAgo(pick.updated);
+    out.push({
+      key: 'memory', tone: 'purple', icon: 'history', label: 'Souvenir', title: pick.title || 'Sans titre',
+      detail: ago >= 365 ? 'Il y a ' + plural(Math.floor(ago / 365), 'an', 'ans') : ago >= 60 ? 'Il y a ' + Math.floor(ago / 30) + ' mois' : 'Il y a ' + ago + ' jours',
+      onClick: () => open(pick.id),
+    });
+  }
+  return out;
+}
+export function Recap() {
+  const notes = useStore(readableNotes), show = useStore(s => s.prefs.tab === 'all' && !s.searchOpen && !s.selecting);
+  const list = useMemo(() => widgets(notes), [notes]);
+  if (!show) return null;
+  const h = new Date().getHours();
+  return (
+    <section className="recap" aria-label="Récapitulatif">
+      <p className="recap-hello"><b>{h >= 5 && h < 18 ? 'Bonjour' : 'Bonsoir'}</b> · {fullDay(Date.now())}</p>
+      {list.length > 0 && (
+        <div className="recap-row">
+          {list.map(w => (
+            <button key={w.key} className="widget" data-tone={w.tone} onClick={w.onClick}>
+              {w.img && <img src={w.img} alt="" />}
+              <span className="widget-label"><Icon name={w.icon} />{w.label}</span>
+              <b className="widget-title">{w.title}</b>
+              {w.detail && <span className="widget-detail">{w.detail}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 /* ---------- Card ---------- */
@@ -109,7 +172,7 @@ function CardFooter({ note }: { note: Note }) {
   const { done, total } = checkStats(note.body), due = dueCards(note).length, remind = !!note.remind && !note.remindDone;
   const items = [
     note.atts.length > 0 && <Count key="a" icon="attach" text={String(note.atts.length)} spoken={plural(note.atts.length, 'pièce jointe', 'pièces jointes')} />,
-    total > 0 && <Count key="l" icon="checklist" text={`${done}/${total}`} spoken={`${done} sur ${total} cochés`} className={done === total ? 'is-done' : ''} />,
+    total > 0 && <Count key="l" icon="checklist" text={done ? `${done}/${total}` : String(total)} spoken={`${done} sur ${total} cochés`} className={done === total ? 'is-done' : ''} />,
     due > 0 && <Count key="d" icon="study" text={String(due)} spoken={plural(due, 'carte à réviser', 'cartes à réviser')} />,
     remind && <Count key="r" icon="bell" text={dayTime(note.remind!)} spoken={'Rappel ' + dayTime(note.remind!)} />,
     note.by === 'ai' && <span key="ai" className="count">IA</span>,

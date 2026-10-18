@@ -44,6 +44,16 @@
   --color-danger: light-dark(#d70015, #ff6961);
   --color-success: light-dark(#1e7a35, #40a970);
   --color-highlight: light-dark(#fbe7a1, #5a4610);
+  /* System tones: one meaning each, everywhere */
+  --tone-red: light-dark(#ff3b30, #ff453a);
+  --tone-orange: light-dark(#ff9500, #ff9f0a);
+  --tone-green: light-dark(#34c759, #30d158);
+  --tone-teal: light-dark(#30b0c7, #40c8e0);
+  --tone-blue: light-dark(#007aff, #0a84ff);
+  --tone-indigo: light-dark(#5856d6, #5e5ce6);
+  --tone-purple: light-dark(#af52de, #bf5af2);
+  --tone-pink: light-dark(#ff2d55, #ff375f);
+  --tone-gray: light-dark(#8e8e93, #98989d);
   --color-scrim: light-dark(#10121a2e, #0000006b);
 
   /* Folders: dot color, tint, readable text */

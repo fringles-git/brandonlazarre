@@ -19,15 +19,40 @@ function useExit<T>(value: T | null, ms = 200) {
   return { shown: value ?? shown, closing };
 }
 
-/** A bottom-anchored glass panel with its own scrim. Focus moves in on open and back on close. */
-export function Layer({ open, onClose, label, className, children, initialFocus, style, data }: {
-  open: boolean; onClose: () => void; label: string; className: string; children: ReactNode;
+/* The control that opened a layer: pointer target (Safari doesn't focus buttons on tap) or keyboard focus. */
+let trigger: Element | null = null;
+document.addEventListener('pointerdown', e => { trigger = (e.target as Element).closest('button, [role=button]'); }, true);
+document.addEventListener('keydown', () => { trigger = document.activeElement; }, true);
+
+/** Phone: bottom sheet under the thumb. Wider screens: a popover next to the control that opened it. */
+function anchorTo(el: Element | null): CSSProperties | undefined {
+  if (!el || !matchMedia('(min-width:40em)').matches) return;
+  const r = el.getBoundingClientRect(), vw = document.documentElement.clientWidth, edge = 12, w = Math.min(380, vw - 2 * edge), gap = 8;
+  if (!r.width) return;
+  const left = Math.min(Math.max(edge, r.left + r.width / 2 - w / 2), vw - w - edge), below = r.top + r.height / 2 < innerHeight / 2;
+  const origin = `${r.left + r.width / 2 - left}px ${below ? '0' : '100%'}`;
+  return below
+    ? { left, right: 'auto', width: w, top: r.bottom + gap, bottom: 'auto', maxHeight: innerHeight - r.bottom - gap - edge, transformOrigin: origin }
+    : { left, right: 'auto', width: w, bottom: innerHeight - r.top + gap, maxHeight: r.top - gap - edge, transformOrigin: origin };
+}
+
+/** A glass panel with its own scrim. Focus moves in on open and back on close. */
+export function Layer({ open, onClose, label, className, children, initialFocus, style, data, anchor = false }: {
+  open: boolean; onClose: () => void; label: string; className: string; children: ReactNode; anchor?: boolean;
   initialFocus?: () => HTMLElement | null | undefined; style?: CSSProperties; data?: Record<string, string | undefined>;
 }) {
   const { shown, closing } = useExit(open ? children : null), panel = useRef<HTMLDivElement>(null), back = useRef<Element | null>(null);
+  const [placed, setPlaced] = useState<CSSProperties | undefined>();
+  const mode = data?.['data-mode'];
+  useLayoutEffect(() => {
+    if (!open || !anchor) return setPlaced(undefined);
+    // A layer opened from inside another keeps the first one's place
+    if (trigger && (panel.current?.contains(trigger) || !trigger.isConnected)) return;
+    setPlaced(anchorTo(trigger));
+  }, [open, anchor, mode]);
   useLayoutEffect(() => {
     if (!open) return;
-    back.current = document.activeElement;
+    back.current = trigger || document.activeElement;
     const el = initialFocus?.() || panel.current?.querySelector<HTMLElement>('input:not([type=hidden]), [data-autofocus]') || panel.current;
     el?.focus({ preventScroll: true });
     return () => { if (back.current instanceof HTMLElement && document.contains(back.current)) back.current.focus({ preventScroll: true }); };
@@ -37,21 +62,24 @@ export function Layer({ open, onClose, label, className, children, initialFocus,
     <>
       <div className="scrim" data-closing={closing || undefined} onClick={onClose} />
       <div ref={panel} className={className} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
-        data-open={open || undefined} data-closing={closing || undefined} style={style} {...data}>
+        data-open={open || undefined} data-closing={closing || undefined} data-anchored={placed ? '' : undefined} style={{ ...placed, ...style }} {...data}>
         {shown}
       </div>
     </>
   );
 }
 
-export function Row({ icon, label, trailing, onClick, pressed, color, disabled, className = 'row' }: {
-  icon?: ReactNode; label: ReactNode; trailing?: ReactNode; onClick?: () => void; pressed?: boolean; color?: number; disabled?: boolean; className?: string;
+/** Zero counts are noise: never shown. */
+export const shown = (v: ReactNode) => v != null && v !== '' && v !== 0 && v !== '0';
+
+export function Row({ icon, label, trailing, onClick, pressed, color, tone, disabled, className = 'row' }: {
+  icon?: ReactNode; label: ReactNode; trailing?: ReactNode; onClick?: () => void; pressed?: boolean; color?: number; tone?: string; disabled?: boolean; className?: string;
 }) {
   return (
-    <button className={className} onClick={onClick} aria-pressed={pressed} data-color={color} disabled={disabled}>
+    <button className={className} onClick={onClick} aria-pressed={pressed} data-color={color} data-tone={tone} disabled={disabled}>
       {typeof icon === 'string' ? <Icon name={icon} /> : icon}
       <span className="row-label">{label}</span>
-      {trailing != null && trailing !== '' && <small>{trailing}</small>}
+      {shown(trailing) && <small>{trailing}</small>}
     </button>
   );
 }
@@ -79,11 +107,12 @@ export function InlineForm({ onSubmit, button, autoFocus = true, inputProps }: {
 
 type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'font';
 export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K; label: string; options: [Prefs[K], ReactNode][] }) {
-  const value = useStore(s => s.prefs[pref]);
+  const value = useStore(s => s.prefs[pref]), at = Math.max(0, options.findIndex(([v]) => v === value));
   return (
     <>
       <h4 id={'seg-' + pref}>{label}</h4>
-      <div className="segmented" role="radiogroup" aria-labelledby={'seg-' + pref}>
+      <div className="segmented" role="radiogroup" aria-labelledby={'seg-' + pref} style={{ '--i': at, '--n': options.length } as CSSProperties}>
+        <span className="seg-thumb" aria-hidden="true" />
         {options.map(([v, text]) => (
           <button key={String(v)} role="radio" aria-checked={value === v} onClick={() => setPref(pref, v)}>{text}</button>
         ))}
@@ -91,6 +120,13 @@ export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K
     </>
   );
 }
+/** On/off with a sliding knob. */
+export const Switch = ({ on, label, note, onClick }: { on: boolean; label: string; note?: ReactNode; onClick: () => void }) => (
+  <button className="option" role="switch" aria-checked={on} onClick={onClick}>
+    <span>{label}{shown(note) && <small className="option-note">{note}</small>}</span>
+    <span className="switch" aria-hidden="true"><i /></span>
+  </button>
+);
 export function Option<K extends keyof Prefs>({ pref, value, label, note }: { pref: K; value: Prefs[K]; label: string; note?: string }) {
   const on = useStore(s => s.prefs[pref] === value);
   return (
