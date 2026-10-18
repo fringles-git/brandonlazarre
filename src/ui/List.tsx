@@ -17,7 +17,7 @@ export function Header() {
   const count = useStore(s => visibleNotes(s).length);
   const s = useStore(useShallow(s => ({ tab: s.prefs.tab, colors: s.folderColors, query: s.query, trash: inTrash(s), selecting: s.selecting, prefs: s.prefs })));
   const title = s.tab === 'all' ? 'Notes' : tabLabel(s.tab), folder = tabFolder(s.tab);
-  const sorted = s.prefs.sort !== 'updated' || s.prefs.dir !== 'desc', filtered = !!s.prefs.filter || s.prefs.by !== 'all';
+  const sorted = s.prefs.sort !== 'updated' || s.prefs.dir !== 'desc';
   return (
     <header className="app-header" id="app-header">
       <div className="pull-hint" aria-hidden="true"><Icon name="search" /><span>Rechercher</span></div>
@@ -30,7 +30,6 @@ export function Header() {
           <button className="icon-btn" onClick={() => setPref('view', s.prefs.view === 'cards' ? 'list' : 'cards')}
             aria-label={s.prefs.view === 'cards' ? 'Afficher en liste' : 'Afficher en cartes'}><Icon name={s.prefs.view === 'cards' ? 'list' : 'cards'} /></button>
           <button className={'icon-btn' + (sorted ? ' has-dot' : '')} onClick={() => openLayer('sort')} aria-haspopup="dialog" aria-label={'Trier' + (sorted ? ' (modifié)' : '')}><Icon name="sort" /></button>
-          <button className={'icon-btn' + (filtered ? ' has-dot' : '')} onClick={() => openLayer('filter')} aria-haspopup="dialog" aria-label={'Filtrer' + (filtered ? ' (actif)' : '')}><Icon name="filter" /></button>
         </div>
       </div>
       <span className="visually-hidden" aria-live="polite">

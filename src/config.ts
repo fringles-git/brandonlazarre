@@ -82,7 +82,7 @@ export const HINTS: { id: string; text: string; fine?: boolean }[] = [
 export const TOUR = [
   { target: '#fab', title: 'Créer', text: '**+** ouvre trois choix : **Note**, **Vocal** ou **Importer** (photo, PDF, fichier). Une note vide propose ensuite : liste, carte à réviser, réunion…', hints: ['paste'] },
   { target: '#nav-island', title: 'Naviguer', text: '**Notes** revient à l’accueil, **Bibliothèque** range dossiers, étiquettes et collections, **Recherche** cherche partout, **Réglages** règle l’app.', hints: ['hidden', 'pull'] },
-  { target: '#view-tools', title: 'Affichage', text: 'En haut : **cartes ou liste**, **trier** et **filtrer** (photos, listes, dates…).', hints: [] },
+  { target: '#view-tools', title: 'Affichage', text: 'En haut : **cartes ou liste** et **trier**. Pour ne voir que les photos, listes ou dates : **Recherche** ou **Bibliothèque**.', hints: [] },
   { target: '#note-list .card', title: 'Vos notes', text: 'Touchez pour ouvrir, **⋮** pour les actions. Glissez à droite pour épingler, à gauche pour supprimer ; **appui long** pour en sélectionner plusieurs.', hints: ['select', 'swipe'] },
   { target: null, title: 'Dans une note', text: 'En bas : **Aa** met en forme, **☑** ajoute une case, **📎** joint un fichier, **⋮** pour le reste, **✓** termine. Glissez la note vers le bas pour la fermer.', hints: ['links', 'cards'] },
 ];
@@ -108,10 +108,20 @@ const RELEASES: Omit<Release, 'version'>[] = [
   {
     date: '2026-10-18',
     changes: {
+      better: [
+        'Trier s’ouvre en liste déroulante sous le bouton, la page reste nette derrière',
+        'En thème sombre, les barres sont en verre clair au lieu d’un bloc noir',
+        'Filtrer retiré : la Recherche et la Bibliothèque filtrent déjà par photos, listes, dates…',
+      ],
+    },
+  },
+  {
+    date: '2026-10-18',
+    changes: {
       new: [
         '+ propose trois choix : Note, Vocal, Importer',
         'Une note vide propose : liste, carte à réviser, réunion, projet, fiche, journal du jour',
-        'En haut : cartes ou liste, trier, filtrer (photos, listes, dates…)',
+        'En haut : cartes ou liste et trier, en menu déroulant sous le bouton',
       ],
       better: [
         'Une seule barre en bas : Notes, Bibliothèque, Recherche, Réglages, avec + du côté de la main dominante ; regroupée de ce côté sur tablette',
@@ -262,7 +272,7 @@ Ctrl sur Windows, ⌘ sur Mac :
 - **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (code PIN), corbeille
 
 # Retrouver
-**Recherche** lit aussi le texte des PDF et des photos. **Enregistrer** garde une recherche comme collection. En haut de l’accueil : trier et filtrer.
+**Recherche** lit aussi le texte des PDF et des photos. **Enregistrer** garde une recherche comme collection. En haut de l’accueil : cartes ou liste, et trier.
 
 # Réviser
 Une ligne « Question :: Réponse » devient une carte. **⋮ → Réviser** vous interroge au bon moment.

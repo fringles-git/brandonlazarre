@@ -141,7 +141,7 @@ export const sortNotes = (notes: Note[], { sort, dir }: Pick<Prefs, 'sort' | 'di
 const visibleMemo = memoArgs((notes: Note[], prefs: Prefs, query: string, kind: Kind | null, unlocked: boolean) =>
   sortNotes(filterNotes(notes, { tab: prefs.tab, by: prefs.by, query, kind, unlocked, collections: prefs.collections }), prefs));
 /** Notes shown in the list right now. */
-export const visibleNotes = (s: State) => visibleMemo(s.notes, s.prefs, s.query, s.searchKind || (s.prefs.filter as Kind | null) || null, s.hiddenUnlocked);
+export const visibleNotes = (s: State) => visibleMemo(s.notes, s.prefs, s.query, s.searchKind, s.hiddenUnlocked);
 
 const readableMemo = memoArgs((notes: Note[], unlocked: boolean) => notes.filter(n => !n.deleted && (!n.locked || unlocked)));
 /** Notes whose content may be shown (links, map, backlinks). */

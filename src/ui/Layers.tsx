@@ -1,7 +1,7 @@
 /** Bottom sheets that pop over the list or the editor, from the thumb side: create, note menu, library, pickers, PIN… */
 import { useShallow } from 'zustand/react/shallow';
 import type { LayerMode, Note } from '../types';
-import { FOLDER_COLORS, KIND_ICON, KIND_TONE, KINDS, SEARCH_KINDS } from '../config';
+import { FOLDER_COLORS, KIND_ICON, KIND_TONE, KINDS } from '../config';
 import { checkStats, dueCards, entities, flashcards, outline, backlinks, stripCheck, tagsOf } from '../markdown';
 import { countIn, folderColor, get, menuNote, openNote, readableNotes, tabFolder, tabLabel, useStore, type State } from '../store';
 import {
@@ -11,7 +11,7 @@ import {
 } from '../actions';
 import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
 import { caretTop, dayOrTime, dayTime, finePointer, plural } from '../utils';
-import { InlineForm, Layer, Row, Segmented, shown } from './kit';
+import { InlineForm, Layer, Option, Row, shown } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
 
@@ -364,26 +364,13 @@ function Sort() {
   return (
     <>
       <Title>Trier</Title>
-      <Segmented pref="sort" label="Par" options={[['updated', 'Modification'], ['created', 'Création']]} />
-      <Segmented pref="dir" label="Ordre" options={[['desc', 'Récentes d’abord'], ['asc', 'Anciennes d’abord']]} />
-    </>
-  );
-}
-function Filter() {
-  const s = useStore(useShallow(s => ({ filter: s.prefs.filter || null, ai: s.notes.filter(n => n.by === 'ai' && !n.deleted).length, tab: s.prefs.tab })));
-  const state = get(), kinds = SEARCH_KINDS.filter(k => s.filter === k || countIn(state, k) > 0);
-  return (
-    <>
-      <Title>Filtrer</Title>
-      <div className="chips layer-chips">
-        <button className="chip" aria-pressed={!s.filter} onClick={() => setPref('filter', null)}>Tout</button>
-        {kinds.map(k => (
-          <button key={k} className="chip" data-tone={KIND_TONE[k]} aria-pressed={s.filter === k} onClick={() => setPref('filter', s.filter === k ? null : k)}>
-            <Icon name={KIND_ICON[k]} />{tabLabel(k)}
-          </button>
-        ))}
-      </div>
-      {s.ai > 0 && <Segmented pref="by" label="Auteur" options={[['all', 'Toutes'], ['me', 'Moi'], ['ai', 'IA']]} />}
+      <h4>Par</h4>
+      <Option pref="sort" value="updated" label="Dernière modification" />
+      <Option pref="sort" value="created" label="Date de création" />
+      <hr />
+      <h4>Ordre</h4>
+      <Option pref="dir" value="desc" label="Récentes d’abord" />
+      <Option pref="dir" value="asc" label="Anciennes d’abord" />
     </>
   );
 }
@@ -402,7 +389,6 @@ const LAYERS: Record<LayerMode, { label: string; Content: () => React.ReactNode 
   'sel-more': { label: 'Plus d’actions', Content: SelMore },
   outline: { label: 'Plan de la note', Content: Outline },
   sort: { label: 'Trier', Content: Sort },
-  filter: { label: 'Filtrer', Content: Filter },
 };
 
 export function LayerHost() {

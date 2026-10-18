@@ -24,13 +24,16 @@ let trigger: Element | null = null;
 document.addEventListener('pointerdown', e => { trigger = (e.target as Element).closest('button, [role=button]'); }, true);
 document.addEventListener('keydown', () => { trigger = document.activeElement; }, true);
 
-/** Phone: bottom sheet under the thumb. Wider screens: a popover next to the control that opened it. */
+/** A control near the top opens a dropdown right under it (any screen); near the bottom, a phone gets a sheet under the thumb
+    and a wider screen a popover just above the control. */
 function anchorTo(el: Element | null): CSSProperties | undefined {
-  if (!el || !matchMedia('(min-width:40em)').matches) return;
-  const r = el.getBoundingClientRect(), vw = document.documentElement.clientWidth, edge = 12, w = Math.min(380, vw - 2 * edge), gap = 8;
-  if (!r.width) return;
-  const left = Math.min(Math.max(edge, r.left + r.width / 2 - w / 2), vw - w - edge), below = r.top + r.height / 2 < innerHeight / 2;
-  const origin = `${r.left + r.width / 2 - left}px ${below ? '0' : '100%'}`;
+  const r = el?.getBoundingClientRect();
+  if (!r?.width) return;
+  const vw = document.documentElement.clientWidth, edge = 12, gap = 8, below = r.top + r.height / 2 < innerHeight / 2;
+  if (!below && !matchMedia('(min-width:40em)').matches) return;
+  const w = Math.min(below ? 320 : 380, vw - 2 * edge), mid = r.left + r.width / 2;
+  const left = Math.min(Math.max(edge, mid > vw / 2 ? r.right - w : below ? r.left : mid - w / 2), vw - w - edge);
+  const origin = `${mid - left}px ${below ? '0' : '100%'}`;
   return below
     ? { left, right: 'auto', width: w, top: r.bottom + gap, bottom: 'auto', maxHeight: innerHeight - r.bottom - gap - edge, transformOrigin: origin }
     : { left, right: 'auto', width: w, bottom: innerHeight - r.top + gap, maxHeight: r.top - gap - edge, transformOrigin: origin };
@@ -60,7 +63,7 @@ export function Layer({ open, onClose, label, className, children, initialFocus,
   if (shown === null) return null;
   return (
     <>
-      <div className="scrim" data-closing={closing || undefined} onClick={onClose} />
+      <div className="scrim" data-closing={closing || undefined} data-light={placed ? '' : undefined} onClick={onClose} />
       <div ref={panel} className={className} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
         data-open={open || undefined} data-closing={closing || undefined} data-anchored={placed ? '' : undefined} style={{ ...placed, ...style }} {...data}>
         {shown}

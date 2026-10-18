@@ -313,7 +313,10 @@ body.layer-open :is(.dock, .editor-dock) { opacity: 0; translate: 0 12px; pointe
 body.layer-open :is(.dock, .editor-dock) * { pointer-events: none !important; }
 
 .island { display: flex; align-items: center; gap: 2px; padding: var(--space-1); border-radius: var(--radius-island); }
-.dock .island.glass, .editor-dock .island.glass { background: light-dark(#ffffffd6, #25262cd9); }   /* navigation reads clearly over content */
+.dock .island.glass, .editor-dock .island.glass, .header-tools.glass {   /* navigation reads clearly; in dark, a lit glass — never a black slab */
+  background: light-dark(#ffffffd6, #4a4b5466); border-color: light-dark(#ffffffb3, #ffffff2e);
+  -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.1); backdrop-filter: blur(28px) saturate(200%) brightness(1.1);
+}
 .main-dock { gap: var(--space-3); }
 .main-dock #nav-island { flex: 1; min-width: 0; justify-content: space-around; }
 .main-dock .tab-btn { flex: 1; min-width: 0; padding: 0 2px; }
@@ -398,6 +401,7 @@ body.is-searching .page { padding-bottom: calc(var(--dock-space) + 60px + var(--
   -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); animation: fade var(--base) both;
 }
 .scrim[data-closing] { animation: fade var(--base) reverse both; }
+.scrim[data-light] { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }   /* dropdowns keep the page sharp */
 @keyframes fade { from { opacity: 0; } }
 .layer, .sheet {
   position: fixed; z-index: 41;
@@ -498,7 +502,7 @@ body[data-hand='left'] :is(.layer, .sheet) { transform-origin: bottom left; }
 .starters {   /* what an empty note can become, right above the thumb */
   display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px; margin: -2px; animation: rise var(--base) var(--ease) both;
 }
-.starters .chip { flex: none; background: light-dark(#ffffffd6, #25262cd9); box-shadow: var(--glass-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.starters .chip { flex: none; background: light-dark(#ffffffd6, #4a4b5466); box-shadow: var(--glass-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
 
 /* Full sheets */
 .sheet { display: flex; flex-direction: column; overflow: hidden; }
@@ -710,7 +714,6 @@ body.layer-open .toast { bottom: auto; top: calc(var(--safe-top) + var(--space-3
 /* ---------- Wide screens: list + editor side by side, sheets beside the thumb ---------- */
 @media (min-width: 40em) {
   /* Menus open beside the control that called them (positioned in JS); sheets are centred */
-  .layer[data-anchored] { animation-name: pop-in; }
   .layer:not([data-anchored]):not(.lib-page) { left: 0; right: 0; margin-inline: auto; width: var(--layer-w); }
   .sheet { inset: 0; margin: auto; width: min(600px, calc(100vw - 2 * var(--edge))); height: fit-content; transform-origin: center; }
   .cols { grid-template-columns: 1fr 1fr; }
@@ -726,6 +729,7 @@ body.layer-open .toast { bottom: auto; top: calc(var(--safe-top) + var(--space-3
   .card-media { margin: -10px -10px 4px; }
 }
 @keyframes pop-in { from { opacity: 0; transform: scale(.9); } }
+.layer[data-anchored] { animation-name: pop-in; animation-duration: var(--base); }
 @media (min-width: 90em) { .note-list.cards { grid-template-columns: repeat(4, 1fr); } }
 @media (min-width: 64em) {
   body.is-editing .page { margin-inline-end: 50%; margin-inline-start: 0; }
