@@ -277,7 +277,7 @@ function About() {
         <Chip icon="sparkle" label="Revoir l’accueil" onClick={replayWelcome} />
       </div>
       <Section title="Créé par"><p className="about-text"><b>Fringles</b> · Design et développement</p></Section>
-      <Section title="Vos données"><p className="about-text">Tout reste sur cet appareil, sans compte ni envoi. {plural(s.count, 'note', 'notes')}{s.info ? ' · ' + bytes(s.info.used) : ''}.</p></Section>
+      <Section title="Vos données"><p className="about-text">Tout reste sur cet appareil, sans compte : rien n’est envoyé sur le cloud. {plural(s.count, 'note', 'notes')}{s.info ? ' · ' + bytes(s.info.used) : ''}.</p></Section>
       <Section title="Journal des modifications"><Timeline releases={RELEASE_LIST} /></Section>
       <Section title="Crédits">{CREDITS.map(([a, b]) => <p key={a} className="about-text"><b>{a}</b> · {b}</p>)}</Section>
     </>

@@ -2,12 +2,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { Attachment, Note } from '../types';
-import { CONFIG, DAY } from '../config';
+import { CONFIG, DAY, TEMPLATES } from '../config';
 import { backlinks, entities, headingLevel, hostOf, titleIndex, withScheme, wordCount, type FormatState } from '../markdown';
 import { urlOf } from '../media';
 import { openNote, readableNotes, useStore } from '../store';
 import {
-  applyFormat, backToReading, caretFormat, closeEditor, editAt, editField, editorRefs, extractSelection, FORMAT_TOOLS, onEditorKey,
+  applyFormat, applyTemplate, backToReading, caretFormat, closeEditor, editAt, editField, editorRefs, extractSelection, FORMAT_TOOLS, onEditorKey,
   open, openImport, openLink, openNoteMenu, patchEditor, removeAtt, setTab, toggleFormatBar, toggleOpenCheck,
 } from '../actions';
 import { audioRate, cycleRate, editorAudios, pauseOthers, toCalendar } from '../features';
@@ -225,6 +225,13 @@ export function Editor() {
       </div>
       <div className="editor-dock" id="format-bar">
         {formatting && <FormatStrip state={format} />}
+          {note && !trashed && !note.body && !note.atts.length && (
+          <div className="starters" role="group" aria-label="Commencer par">
+            {TEMPLATES.map(t => (
+              <button key={t.id} className="chip" data-tone={t.tone} onPointerDown={e => e.preventDefault()} onClick={() => applyTemplate(t.id)}><Icon name={t.icon} />{t.label}</button>
+            ))}
+          </div>
+        )}
         <div className="thumb-row">
           {!trashed && (
             <div className="island glass" role="toolbar" aria-label="Outils de la note">

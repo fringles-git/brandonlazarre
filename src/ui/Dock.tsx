@@ -4,47 +4,38 @@ import { useShallow } from 'zustand/react/shallow';
 import { SEARCH_KINDS, KIND_ICON } from '../config';
 import { filterNotes, inTrash, KIND_TEST, tabLabel, useStore, visibleNotes } from '../store';
 import {
-  allSelected, clearRecents, closeSearch, createAndOpen, deleteSelection, endSelecting, hideSelection, openSearch, pinSelection,
+  allSelected, clearRecents, closeSearch, deleteSelection, goHome, endSelecting, hideSelection, openSearch, pinSelection,
   restoreSelection, saveCollection, selectAll, setQuery, toggleKind, toggleLayer, toggleLibrary, toggleSettings,
 } from '../actions';
-import { cancelRecording, stopRecording, toggleRecording } from '../features';
-import { clock, haptic, plural } from '../utils';
-import { CONFIG } from '../config';
+import { cancelRecording, stopRecording } from '../features';
+import { clock, plural } from '../utils';
 import { Icon } from './icons';
 
-/** + : a tap writes a new note; a long press (or right-click) opens the Create sheet. */
+/** + opens the Create sheet: note, voice, import. */
 function Fab() {
-  const open = useStore(s => s.layer.mode === 'create'), timer = useRef(0), held = useRef(false);
-  const hold = () => { held.current = true; haptic('open'); toggleLayer('create'); };
+  const open = useStore(s => s.layer.mode === 'create');
   return (
-    <button className="fab" id="fab" aria-label="Nouvelle note (appui long : plus d’options)" aria-haspopup="dialog" aria-expanded={open}
-      onPointerDown={e => { if (e.button === 0) { held.current = false; timer.current = window.setTimeout(hold, CONFIG.longPressMs); } }}
-      onPointerUp={() => clearTimeout(timer.current)} onPointerLeave={() => clearTimeout(timer.current)}
-      onContextMenu={e => { e.preventDefault(); clearTimeout(timer.current); if (!held.current) hold(); }}
-      onClick={() => { if (held.current) { held.current = false; return; } createAndOpen(); }}>
+    <button className="fab" id="fab" aria-label="Créer : note, vocal, import" aria-haspopup="dialog" aria-expanded={open} onClick={() => toggleLayer('create')}>
       <Icon name="plus" />
     </button>
   );
 }
 
+/** One navigation island next to +, which sits on the thumb's side. */
 function MainDock() {
-  const s = useStore(useShallow(s => ({ library: s.layer.mode === 'library', settings: s.sheet === 'settings', recording: s.recorder.on })));
+  const s = useStore(useShallow(s => ({ home: s.prefs.tab === 'all' && !s.layer.mode && !s.sheet, library: s.layer.mode === 'library', settings: s.sheet === 'settings' })));
+  const tab = (id: string, icon: string, label: string, onClick: () => void, on: boolean, popup = false) => (
+    <button className="tab-btn" id={id} onClick={onClick} aria-pressed={on} aria-haspopup={popup ? 'dialog' : undefined}><Icon name={icon} /><span>{label}</span></button>
+  );
   return (
-    <nav className="dock thumb-row" aria-label="Navigation">
+    <nav className="dock thumb-row main-dock" aria-label="Navigation">
       <div className="island glass" id="nav-island">
-        <button className="tab-btn" onClick={toggleLibrary} aria-pressed={s.library} aria-haspopup="dialog"><Icon name="library" /><span>Bibliothèque</span></button>
-        <button className="tab-btn" onClick={toggleSettings} aria-pressed={s.settings} aria-haspopup="dialog"><Icon name="settings" /><span>Réglages</span></button>
+        {tab('nav-notes', 'all', 'Notes', goHome, s.home)}
+        {tab('nav-library', 'library', 'Bibliothèque', toggleLibrary, s.library, true)}
+        {tab('search-button', 'search', 'Recherche', openSearch, false)}
+        {tab('nav-settings', 'settings', 'Réglages', toggleSettings, s.settings, true)}
       </div>
-      <div className="thumb-group">
-        <div className="island glass">
-          <button className="icon-btn" id="search-button" onClick={openSearch} aria-label="Rechercher"><Icon name="search" /></button>
-          <button className={'icon-btn' + (s.recording ? ' is-recording' : '')} id="mic" onClick={toggleRecording}
-            aria-label={s.recording ? 'Arrêter l’enregistrement' : 'Enregistrer un message vocal'} aria-pressed={s.recording}>
-            <Icon name={s.recording ? 'stop' : 'mic'} />
-          </button>
-        </div>
-        <Fab />
-      </div>
+      <Fab />
     </nav>
   );
 }

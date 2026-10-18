@@ -334,21 +334,24 @@ export const uncheckList = () => bulkList(uncheckAll, 'Liste décochée');
 export const clearChecked = () => bulkList(dropChecked, 'Éléments cochés supprimés');
 
 /* ---------- Creating ---------- */
-export function fromTemplate(id: string) {
-  const t = TEMPLATES.find(x => x.id === id)!, caret = t.body.indexOf('¦');
-  closeLayer();
-  createAndOpen({ title: t.title(new Date()), body: t.body.replace('¦', '') });
-  if (caret < 0) return patchEditor({ focus: 'title' });
+/** Turns the open (empty) note into a list, a flashcard, a meeting… and puts the caret where to type. */
+export function applyTemplate(id: string) {
+  const t = TEMPLATES.find(x => x.id === id)!, n = openNote(get());
+  if (!n) return;
+  editNote({ title: n.title || t.title(new Date()), body: t.body.replace('¦', '') });
   flushSync(() => patchEditor({ focus: null, reading: false }));
-  if (editorRefs.body) focusAt(editorRefs.body, caret);
+  if (editorRefs.body) focusAt(editorRefs.body, Math.max(0, t.body.indexOf('¦')));
+}
+export function fromTemplate(id: string) {
+  closeLayer();
+  createAndOpen();
+  applyTemplate(id);
 }
 export function dailyNote() {
   closeLayer();
   const title = fullDay(Date.now()), existing = get().notes.find(n => !n.deleted && n.title === title);
   if (existing) return open(existing.id);
-  createAndOpen({ title, body: '#journal\n\n' });
-  flushSync(() => patchEditor({ focus: null, reading: false }));
-  if (editorRefs.body) focusAt(editorRefs.body, editorRefs.body.value.length);
+  fromTemplate('today');
 }
 /** [[Title]]: opens that note, or creates it. */
 export function openLink(title: string) {

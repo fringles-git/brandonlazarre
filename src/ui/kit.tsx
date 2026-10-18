@@ -105,7 +105,7 @@ export function InlineForm({ onSubmit, button, autoFocus = true, inputProps }: {
   );
 }
 
-type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'font';
+type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'font' | 'sort' | 'dir' | 'by';
 export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K; label: string; options: [Prefs[K], ReactNode][] }) {
   const value = useStore(s => s.prefs[pref]), at = Math.max(0, options.findIndex(([v]) => v === value));
   return (

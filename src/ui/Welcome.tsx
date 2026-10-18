@@ -23,7 +23,7 @@ const STEPS = [
     <Art />
     <h2 className="welcome-title">Bienvenue dans Notes</h2>
     <p className="welcome-lead">Vos notes, listes, photos et messages vocaux, à portée de pouce.</p>
-    <Feature icon="lock" title="Privé" text="Tout reste sur cet appareil : pas de compte, rien n’est envoyé." />
+    <Feature icon="lock" title="Privé" text="Tout reste sur cet appareil : pas de compte, rien n’est envoyé sur le cloud." />
     <Feature icon="offline" title="Hors ligne" text="Notes s’ouvre et enregistre même sans connexion." />
     <Feature icon="hand" title="À une main" text="Tout ce qui sert souvent est en bas, sous le pouce." />
   </>,
@@ -87,7 +87,7 @@ export function Tour() {
       <div className={'tour-bubble glass' + (rect ? '' : ' is-centered')} style={{ ...bubble, width: w }}>
         <p className="tour-count">{index + 1} / {TOUR.length}</p>
         <h2 className="tour-title" id="tour-title">{step.title}</h2>
-        <p className="tour-text" id="tour-text">{step.text}</p>
+        <p className="tour-text" id="tour-text">{step.text.split('**').map((t, i) => (i % 2 ? <b key={i}>{t}</b> : t))}</p>
         <div className="tour-actions">
           {!last && <button className="text-btn" onClick={endTour}>Passer</button>}
           {index > 0 && <button className="text-btn push" onClick={() => tourStep(index - 1)}>Précédent</button>}

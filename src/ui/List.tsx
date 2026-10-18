@@ -3,10 +3,10 @@ import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { useShallow } from 'zustand/react/shallow';
 import type { Note } from '../types';
 import { CONFIG } from '../config';
-import { checkStats, dueCards, entities, parseCheck, plainText, snippet } from '../markdown';
+import { checkStats, dueCards, entities, parseCheck, plainLine, plainText, snippet } from '../markdown';
 import { firstAtt, urlOf } from '../media';
 import { countIn, folderColor, inTrash, readableNotes, tabFolder, tabLabel, useStore, visibleNotes } from '../store';
-import { changePin, clearByFilter, emptyTrash, goHome, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
+import { changePin, clearByFilter, setPref, emptyTrash, goHome, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
 import { backupDue, currentHint, dismissHint, exportBackup, playCard, startStudy } from '../features';
 import { consumeClick } from '../gestures';
 import { bytes, clock, day, daysAgo, dayTime, eventDate, finePointer, fullDay, plural, relativeDay } from '../utils';
@@ -17,7 +17,7 @@ export function Header() {
   const count = useStore(s => visibleNotes(s).length);
   const s = useStore(useShallow(s => ({ tab: s.prefs.tab, colors: s.folderColors, query: s.query, trash: inTrash(s), selecting: s.selecting, prefs: s.prefs })));
   const title = s.tab === 'all' ? 'Notes' : tabLabel(s.tab), folder = tabFolder(s.tab);
-  const changed = s.prefs.sort !== 'updated' || s.prefs.dir !== 'desc' || s.prefs.by !== 'all';
+  const sorted = s.prefs.sort !== 'updated' || s.prefs.dir !== 'desc', filtered = !!s.prefs.filter || s.prefs.by !== 'all';
   return (
     <header className="app-header" id="app-header">
       <div className="pull-hint" aria-hidden="true"><Icon name="search" /><span>Rechercher</span></div>
@@ -26,10 +26,12 @@ export function Header() {
         <h1 id="page-title" data-color={folder ? folderColor(folder, s.colors) : undefined} onClick={goHome}>
           {title}{count > 0 && <span className="title-count" aria-hidden="true">{count}</span>}
         </h1>
-        <button className={'icon-btn glass' + (changed ? ' has-dot' : '')} id="view-button" onClick={() => openLayer('view')}
-          aria-haspopup="dialog" aria-label={'Affichage : vue, tri, filtre, sélection' + (changed ? ' (modifié)' : '')} disabled={s.selecting}>
-          <Icon name="more" />
-        </button>
+        <div className="island glass header-tools" id="view-tools">
+          <button className="icon-btn" onClick={() => setPref('view', s.prefs.view === 'cards' ? 'list' : 'cards')}
+            aria-label={s.prefs.view === 'cards' ? 'Afficher en liste' : 'Afficher en cartes'}><Icon name={s.prefs.view === 'cards' ? 'list' : 'cards'} /></button>
+          <button className={'icon-btn' + (sorted ? ' has-dot' : '')} onClick={() => openLayer('sort')} aria-haspopup="dialog" aria-label={'Trier' + (sorted ? ' (modifié)' : '')}><Icon name="sort" /></button>
+          <button className={'icon-btn' + (filtered ? ' has-dot' : '')} onClick={() => openLayer('filter')} aria-haspopup="dialog" aria-label={'Filtrer' + (filtered ? ' (actif)' : '')}><Icon name="filter" /></button>
+        </div>
       </div>
       <span className="visually-hidden" aria-live="polite">
         {(s.trash ? plural(count, 'note supprimée', 'notes supprimées') : plural(count, 'note', 'notes')) + (s.query.trim() ? ' · résultats de recherche' : '')}
@@ -79,7 +81,7 @@ function widgets(notes: Note[]): Widget[] {
     .filter(x => x.left.length).sort((a, b) => b.n.updated - a.n.updated);
   if (todo.length) out.push({
     key: 'todo', tone: 'blue', icon: 'checklist', label: 'À faire', title: todo[0].n.title || 'Sans titre',
-    detail: todo[0].left.slice(0, 2).map(c => c!.text).join(' · ') + (todo.reduce((t, x) => t + x.left.length, 0) > 2 ? '…' : ''), onClick: () => open(todo[0].n.id),
+    detail: todo[0].left.slice(0, 2).map(c => plainLine(c!.text)).join(' · ') + (todo.reduce((t, x) => t + x.left.length, 0) > 2 ? '…' : ''), onClick: () => open(todo[0].n.id),
   });
   const media = notes.filter(n => n.created > now - 7 * 864e5 && n.atts.some(a => a.type === 'image' || a.type === 'audio')).sort((a, b) => b.created - a.created)[0];
   if (media) {
@@ -110,8 +112,8 @@ export function Recap() {
       <p className="recap-hello"><b>{h >= 5 && h < 18 ? 'Bonjour' : 'Bonsoir'}</b> · {fullDay(Date.now())}</p>
       {list.length > 0 && (
         <div className="recap-row">
-          {list.map(w => (
-            <button key={w.key} className="widget" data-tone={w.tone} onClick={w.onClick}>
+          {list.map((w, i) => (
+            <button key={w.key} className="widget" data-tone={w.tone} data-size={list.length > 2 && (i === 0 || w.img) ? 'tall' : undefined} onClick={w.onClick}>
               {w.img && <img src={w.img} alt="" />}
               <span className="widget-label"><Icon name={w.icon} />{w.label}</span>
               <b className="widget-title">{w.title}</b>

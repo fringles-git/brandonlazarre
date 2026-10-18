@@ -53,18 +53,23 @@ export const TAB_LABEL: Record<string, string> = {
   audio: 'Notes vocales', pdfs: 'PDF', study: 'À réviser', none: 'Non catégorisé', trash: 'Récemment supprimé', locked: 'Notes masquées',
 };
 
+/** What an empty note can become (¦ = caret). Shown as chips while the note is empty. */
 export const TEMPLATES = [
-  { id: 'list', label: 'Liste à cocher', icon: 'checklist', title: () => '', body: '- [ ] ¦' },
+  { id: 'list', label: 'Liste', icon: 'checklist', tone: 'blue', title: () => '', body: '- [ ] ¦' },
+  { id: 'card', label: 'Carte à réviser', icon: 'study', tone: 'indigo', title: () => '', body: '¦ :: ' },
   {
-    id: 'meeting', label: 'Réunion', icon: 'all', title: (d: Date) => 'Réunion du ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+    id: 'meeting', label: 'Réunion', icon: 'all', tone: 'orange', title: (d: Date) => 'Réunion du ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
     body: '## Participants\n- ¦\n\n## Ordre du jour\n1. \n\n## Décisions\n- \n\n## Actions\n- [ ] ',
   },
-  { id: 'project', label: 'Projet', icon: 'outline', title: () => '', body: '## Objectif\n¦\n\n## Étapes\n- [ ] \n\n## Notes\n' },
-  { id: 'study', label: 'Fiche de révision', icon: 'study', title: () => '', body: '## Points clés\n- ¦\n\n## Cartes\nQuestion :: Réponse' },
+  { id: 'project', label: 'Projet', icon: 'outline', tone: 'teal', title: () => '', body: '## Objectif\n¦\n\n## Étapes\n- [ ] \n\n## Notes\n' },
+  { id: 'study', label: 'Fiche de révision', icon: 'doc', tone: 'purple', title: () => '', body: '## Points clés\n- ¦\n\n## Cartes\nQuestion :: Réponse' },
+  {
+    id: 'today', label: 'Journal du jour', icon: 'calendar', tone: 'green', body: '#journal\n\n¦',
+    title: (d: Date) => { const t = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return t[0].toUpperCase() + t.slice(1); },
+  },
 ] as const;
 
 export const HINTS: { id: string; text: string; fine?: boolean }[] = [
-  { id: 'hold', text: 'Appui long sur + : liste, photo, modèle ou import' },
   { id: 'pull', text: 'Tirez la liste vers le bas pour chercher' },
   { id: 'select', text: 'Appui long sur une note pour en sélectionner plusieurs' },
   { id: 'swipe', text: 'Glissez une note pour l’épingler ou la supprimer' },
@@ -75,12 +80,11 @@ export const HINTS: { id: string; text: string; fine?: boolean }[] = [
 ];
 
 export const TOUR = [
-  { target: '#fab', title: 'Créer', text: 'Touchez + : une note s’ouvre, prête à écrire. Appui long : liste, photo, note du jour, modèles ou import.', hints: ['hold', 'paste'] },
-  { target: '#mic', title: 'Dicter', text: 'Le micro enregistre un message vocal ; touchez-le encore pour l’arrêter.', hints: [] },
-  { target: '#search-button', title: 'Chercher', text: 'La recherche s’ouvre en bas, au-dessus du clavier. Vous pouvez aussi tirer la liste vers le bas.', hints: ['pull'] },
-  { target: '#nav-island', title: 'Ranger', text: 'Bibliothèque : dossiers, étiquettes, collections, Notes masquées, corbeille. Réglages : thème, main dominante, sauvegarde.', hints: ['hidden'] },
-  { target: '#note-list .card', title: 'Vos notes', text: 'Touchez pour ouvrir, ⋮ pour les actions. Glissez à droite pour épingler, à gauche pour supprimer ; appui long pour sélectionner.', hints: ['select', 'swipe'] },
-  { target: null, title: 'Dans une note', text: 'Tout est en bas : Aa met en forme, la case ajoute une liste, le trombone joint un fichier, ⋮ pour le reste et ✓ termine. Glissez la note vers le bas pour la fermer.', hints: ['links', 'cards'] },
+  { target: '#fab', title: 'Créer', text: '**+** ouvre trois choix : **Note**, **Vocal** ou **Importer** (photo, PDF, fichier). Une note vide propose ensuite : liste, carte à réviser, réunion…', hints: ['paste'] },
+  { target: '#nav-island', title: 'Naviguer', text: '**Notes** revient à l’accueil, **Bibliothèque** range dossiers, étiquettes et collections, **Recherche** cherche partout, **Réglages** règle l’app.', hints: ['hidden', 'pull'] },
+  { target: '#view-tools', title: 'Affichage', text: 'En haut : **cartes ou liste**, **trier** et **filtrer** (photos, listes, dates…).', hints: [] },
+  { target: '#note-list .card', title: 'Vos notes', text: 'Touchez pour ouvrir, **⋮** pour les actions. Glissez à droite pour épingler, à gauche pour supprimer ; **appui long** pour en sélectionner plusieurs.', hints: ['select', 'swipe'] },
+  { target: null, title: 'Dans une note', text: 'En bas : **Aa** met en forme, **☑** ajoute une case, **📎** joint un fichier, **⋮** pour le reste, **✓** termine. Glissez la note vers le bas pour la fermer.', hints: ['links', 'cards'] },
 ];
 
 export const CREDITS: [string, string][] = [
@@ -101,6 +105,21 @@ type ChangeKind = (typeof CHANGE_KINDS)[number]['kind'];
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-18',
+    changes: {
+      new: [
+        '+ propose trois choix : Note, Vocal, Importer',
+        'Une note vide propose : liste, carte à réviser, réunion, projet, fiche, journal du jour',
+        'En haut : cartes ou liste, trier, filtrer (photos, listes, dates…)',
+      ],
+      better: [
+        'Une seule barre en bas : Notes, Bibliothèque, Recherche, Réglages, avec + du côté de la main dominante ; regroupée de ce côté sur tablette',
+        'Récap en mosaïque, fond flouté derrière les menus, barre de navigation plus lisible, trois colonnes de cartes sur tablette',
+        'Guide « Comment utiliser » réécrit : raccourcis clairs, Entrée pour ajouter un élément à la liste',
+      ],
+    },
+  },
   {
     date: '2026-10-18',
     changes: {
@@ -199,11 +218,11 @@ export const releasesSince = (v: string) => {
 
 /* ---------- Starter notes ---------- */
 export const GUIDE_TITLE = 'Comment utiliser';
-const WELCOME = `Notes garde vos idées, listes, photos et messages vocaux **sur cet appareil** : pas de compte, rien n’est envoyé, et tout fonctionne ==hors ligne==.
+const WELCOME = `Notes garde vos idées, listes, photos et messages vocaux **sur cet appareil** : pas de compte, rien n’est envoyé sur le cloud, et tout fonctionne ==hors ligne==.
 
 ## Premiers pas
 - [ ] Lire [[${GUIDE_TITLE}]]
-- [ ] Écrire une note avec le bouton +
+- [ ] Créer une note avec **+**
 - [ ] Ranger une note dans un dossier
 - [ ] Exporter une première sauvegarde
 
@@ -213,41 +232,43 @@ const WELCOME = `Notes garde vos idées, listes, photos et messages vocaux **sur
 
 Bonne écriture !`;
 
-const GUIDE = `# Écrire
-Touchez le texte pour le modifier ; il reprend sa mise en forme quand vous avez fini. En bas de la note, **Aa** ouvre la mise en forme :
-- **H** : titre, puis sous-titre, puis intertitre
-- **Gras**, *italique* et ==surligné==
+const GUIDE = `# Créer
+- **+** : **Note**, **Vocal** ou **Importer** (photo, PDF, Markdown, EPUB)
+- Note vide : choisissez **Liste**, **Carte à réviser**, **Réunion**, **Projet** ou **Journal du jour**
+- Collez une image ou un lien sur l’accueil : il devient une note
+
+# Mettre en forme
+Touchez le texte pour l’écrire ; il se met en forme quand vous sortez. **Aa**, en bas de la note, ouvre les outils :
+- **H** titre (touchez encore : sous-titre, intertitre)
+- **B** gras, **I** italique, surligneur ==surligné==
 - Listes à puces, numérotées ou à cocher
-- [[Bienvenue]] : un lien vers une autre note
+- **[[ ]]** lien vers une autre note, comme [[Bienvenue]]
+- **::** carte à réviser
 
-Au clavier : Ctrl (⌘ sur Mac) + B, I, Maj+H, Maj+7, 8 ou 9. Entrée continue une liste ; Entrée sur un élément vide la termine.
+**Entrée** ajoute un élément à la liste ; **Entrée** sur un élément vide termine la liste.
 
-# Créer
-1. **+** : une nouvelle note, prête à écrire
-2. Appui long sur **+** : liste, photo, note du jour, modèles, import d’un PDF, d’un fichier texte ou d’un livre EPUB
-3. Le **micro** à côté enregistre un message vocal
-4. Collez une image ou un lien n’importe où : il devient une note
+# Raccourcis clavier
+Ctrl sur Windows, ⌘ sur Mac :
+- Ctrl + B : gras · Ctrl + I : italique · Ctrl + Maj + H : surligner
+- Ctrl + Maj + 7 / 8 / 9 : liste numérotée / à puces / à cocher
+- Ctrl + K : lien · Ctrl + Maj + K : carte à réviser
+- Ctrl + Alt + 1 / 2 / 3 : titres
+- Sur l’accueil : **N** note, **L** liste, **D** journal du jour, **/** rechercher
 
 # Organiser
-- ⋮ sur une note : épingler, déplacer, partager, masquer, supprimer
-- Glissez une note vers la droite pour l’**épingler**, vers la gauche pour la **supprimer**
-- Appui long : sélectionner plusieurs notes, puis les déplacer, les fusionner ou les partager
-- **Bibliothèque** : dossiers, étiquettes, collections, corbeille ; chaque dossier a sa couleur et sa vue d’ensemble
-- Un mot précédé de #, comme #idées, est une **étiquette**
+- Glissez une note à droite : **épingler** ; à gauche : **supprimer**
+- **Appui long** : sélectionner plusieurs notes (déplacer, fusionner, partager)
+- **⋮** sur une note : épingler, déplacer, rappel, partager, masquer
+- **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (code PIN), corbeille
 
 # Retrouver
-La **loupe**, en bas, ouvre la recherche au-dessus du clavier ; vous pouvez aussi tirer la liste vers le bas. La recherche lit le texte des PDF et des photos. **Enregistrer** garde une recherche comme collection.
+**Recherche** lit aussi le texte des PDF et des photos. **Enregistrer** garde une recherche comme collection. En haut de l’accueil : trier et filtrer.
 
 # Réviser
-Écrivez une question et sa réponse sur une ligne, séparées par deux deux-points (::), comme ceci :
-Capitale du Canada :: Ottawa
-**⋮ → Réviser** vous interroge au bon moment.
-
-# Agir
-Les dates, adresses, numéros et liens d’une note deviennent des boutons, à la fin du texte. **⋮ → Rappel** programme un rappel.
+Une ligne « Question :: Réponse » devient une carte. **⋮ → Réviser** vous interroge au bon moment.
 
 # Sauvegarder
-Tout reste sur cet appareil : exportez une sauvegarde de temps en temps (**Réglages → Exporter les notes**). Chaque note garde ses 10 dernières versions.`;
+Rien n’est envoyé sur le cloud : exportez parfois une sauvegarde (**Réglages → Exporter les notes**). Chaque note garde ses 10 dernières versions.`;
 
 export const STARTER_NOTES: Pick<Note, 'title' | 'body'>[] = [
   { title: GUIDE_TITLE, body: GUIDE },

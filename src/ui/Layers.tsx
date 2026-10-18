@@ -1,17 +1,17 @@
 /** Bottom sheets that pop over the list or the editor, from the thumb side: create, note menu, library, pickers, PIN… */
 import { useShallow } from 'zustand/react/shallow';
 import type { LayerMode, Note } from '../types';
-import { FOLDER_COLORS, KIND_ICON, KIND_TONE, KINDS, TEMPLATES } from '../config';
+import { FOLDER_COLORS, KIND_ICON, KIND_TONE, KINDS, SEARCH_KINDS } from '../config';
 import { checkStats, dueCards, entities, flashcards, outline, backlinks, stripCheck, tagsOf } from '../markdown';
 import { countIn, folderColor, get, menuNote, openNote, readableNotes, tabFolder, tabLabel, useStore, type State } from '../store';
 import {
-  clearChecked, closeLayer, dailyNote, deleteCollection, deleteFolder, fromTemplate, menuDeleteForever, menuHide, menuPin,
+  clearChecked, closeLayer, createAndOpen, deleteCollection, deleteFolder, menuDeleteForever, menuHide, menuPin,
   menuRestore, menuTrash, moveSelection, moveTo, openLayer, openPicker, patchLayer, renameCollection, renameFolder, resetPin, restoreVersion,
   setFolderColor, setPref, setTab, submitFolder, submitPin, toggleEditFolders, toggleNewFolder, uncheckList, editorRefs,
 } from '../actions';
-import { clearReminder, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
+import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
 import { caretTop, dayOrTime, dayTime, finePointer, plural } from '../utils';
-import { InlineForm, Layer, Option, Row, Segmented, shown } from './kit';
+import { InlineForm, Layer, Row, Segmented, shown } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
 
@@ -25,25 +25,24 @@ function TabRow({ tab, trailing, pressed, onClick }: { tab: string; trailing?: R
 const NewFolder = () => <InlineForm onSubmit={submitFolder} button="Créer le dossier" inputProps={{ placeholder: 'Nom du dossier', 'aria-label': 'Nom du dossier' }} />;
 
 /* ---------- Create (long press on +) ---------- */
+/** + : three ways to capture. */
 function Create() {
-  const tile = (id: string, icon: string, label: string, onClick: () => void) => (
-    <button className="tile glass" id={'create-' + id} onClick={onClick}><Icon name={icon} /><span>{label}</span></button>
+  const tile = (id: string, icon: string, tone: string, label: string, hint: string, onClick: () => void) => (
+    <button className="tile" id={'create-' + id} data-tone={tone} onClick={onClick}>
+      <span className="lib-bubble"><Icon name={icon} /></span><b>{label}</b><small>{hint}</small>
+    </button>
   );
   return (
     <>
       <Title>Créer</Title>
       <div className="tiles" role="group" aria-label="Nouvelle note">
-        {tile('list', 'checklist', 'Liste', () => fromTemplate('list'))}
-        {tile('photo', 'camera', 'Photo', () => { closeLayer(); useStore.setState({ importTarget: 'new' }); pickFile('photo'); })}
-        {tile('today', 'calendar', 'Du jour', dailyNote)}
-        {tile('paste', 'paste', 'Coller', pasteClipboard)}
+        {tile('note', 'edit', 'yellow', 'Note', 'Texte, liste, carte…', () => { closeLayer(); createAndOpen(); })}
+        {tile('mic', 'mic', 'red', 'Vocal', 'Enregistrer', () => { closeLayer(); toggleRecording(); })}
+        {tile('import', 'download', 'blue', 'Importer', 'Photo, PDF, fichier', () => { useStore.setState({ importTarget: 'new' }); openLayer('import'); })}
       </div>
-      <Row icon="templates" label="Modèles" trailing="Réunion, projet…" onClick={() => openLayer('templates')} />
-      <Row icon="download" label="Importer" trailing="PDF, Markdown…" onClick={() => { useStore.setState({ importTarget: 'new' }); openLayer('import'); }} />
     </>
   );
 }
-const Templates = () => <><Title>Modèles</Title>{TEMPLATES.map(t => <Row key={t.id} icon={t.icon} label={t.label} onClick={() => fromTemplate(t.id)} />)}</>;
 
 function Import() {
   const attach = useStore(s => s.importTarget === 'open'), pick = (kind: Parameters<typeof pickFile>[0]) => () => { closeLayer(); pickFile(kind); };
@@ -361,24 +360,30 @@ function Outline() {
   const heads = useStore(s => outline(openNote(s)?.body || ''));
   return <><Title>Plan</Title>{heads.map(h => <Row key={h.line} className={'row row-h' + h.level} icon="outline" label={h.text} onClick={() => goToLine(h.line)} />)}</>;
 }
-function View() {
-  const ai = useStore(s => s.notes.filter(n => n.by === 'ai' && !n.deleted).length);
+function Sort() {
   return (
     <>
-      <Title>Affichage</Title>
-      <Segmented pref="view" label="Vue" options={[['cards', <><Icon name="cards" />Cartes</>], ['list', <><Icon name="list" />Liste</>]]} />
-      <h4>Trier par</h4>
-      <Option pref="sort" value="updated" label="Dernière modification" />
-      <Option pref="sort" value="created" label="Date de création" />
-      <h4>Ordre</h4>
-      <Option pref="dir" value="desc" label="Récentes d’abord" />
-      <Option pref="dir" value="asc" label="Anciennes d’abord" />
-      {ai > 0 && <>
-        <h4>Afficher</h4>
-        <Option pref="by" value="all" label="Toutes les notes" />
-        <Option pref="by" value="me" label="Créées par moi" />
-        <Option pref="by" value="ai" label="Créées avec l’IA" note={String(ai)} />
-      </>}
+      <Title>Trier</Title>
+      <Segmented pref="sort" label="Par" options={[['updated', 'Modification'], ['created', 'Création']]} />
+      <Segmented pref="dir" label="Ordre" options={[['desc', 'Récentes d’abord'], ['asc', 'Anciennes d’abord']]} />
+    </>
+  );
+}
+function Filter() {
+  const s = useStore(useShallow(s => ({ filter: s.prefs.filter || null, ai: s.notes.filter(n => n.by === 'ai' && !n.deleted).length, tab: s.prefs.tab })));
+  const state = get(), kinds = SEARCH_KINDS.filter(k => s.filter === k || countIn(state, k) > 0);
+  return (
+    <>
+      <Title>Filtrer</Title>
+      <div className="chips layer-chips">
+        <button className="chip" aria-pressed={!s.filter} onClick={() => setPref('filter', null)}>Tout</button>
+        {kinds.map(k => (
+          <button key={k} className="chip" data-tone={KIND_TONE[k]} aria-pressed={s.filter === k} onClick={() => setPref('filter', s.filter === k ? null : k)}>
+            <Icon name={KIND_ICON[k]} />{tabLabel(k)}
+          </button>
+        ))}
+      </div>
+      {s.ai > 0 && <Segmented pref="by" label="Auteur" options={[['all', 'Toutes'], ['me', 'Moi'], ['ai', 'IA']]} />}
     </>
   );
 }
@@ -386,7 +391,6 @@ function View() {
 const LAYERS: Record<LayerMode, { label: string; Content: () => React.ReactNode }> = {
   create: { label: 'Créer', Content: Create },
   'note-menu': { label: 'Actions de la note', Content: NoteMenu },
-  templates: { label: 'Modèles', Content: Templates },
   import: { label: 'Importer', Content: Import },
   'list-actions': { label: 'Actions de la liste', Content: ListActions },
   'ios-install': { label: 'Installer sur iPhone', Content: IosInstall },
@@ -397,7 +401,8 @@ const LAYERS: Record<LayerMode, { label: string; Content: () => React.ReactNode 
   history: { label: 'Historique des versions', Content: History },
   'sel-more': { label: 'Plus d’actions', Content: SelMore },
   outline: { label: 'Plan de la note', Content: Outline },
-  view: { label: 'Affichage', Content: View },
+  sort: { label: 'Trier', Content: Sort },
+  filter: { label: 'Filtrer', Content: Filter },
 };
 
 export function LayerHost() {

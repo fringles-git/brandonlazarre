@@ -48,6 +48,7 @@ export interface Prefs {
   tint: 'off' | 'on';
   font: 'sans' | 'serif';
   formatBar?: boolean;
+  filter?: string | null;
   ocr?: boolean;
   audioRate?: number;
   collections?: Collection[];
@@ -63,8 +64,8 @@ export interface Prefs {
 
 export type SheetMode = 'study' | 'map' | 'overview' | 'settings' | 'about' | 'news';
 export type LayerMode =
-  | 'create' | 'note-menu' | 'templates' | 'import' | 'list-actions' | 'ios-install' | 'library' | 'picker'
-  | 'pin' | 'remind' | 'history' | 'sel-more' | 'outline' | 'view';
+  | 'create' | 'note-menu' | 'import' | 'list-actions' | 'ios-install' | 'library' | 'picker'
+  | 'pin' | 'remind' | 'history' | 'sel-more' | 'outline' | 'sort' | 'filter';
 export type PinStep = 'new' | 'auth' | 'change';
 
 export interface StudyItem { noteId: number; card: Flashcard }
