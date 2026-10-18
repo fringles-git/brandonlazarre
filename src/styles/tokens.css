@@ -25,7 +25,7 @@
   --glass: light-dark(#ffffff8c, #26272e80);
   --glass-strong: light-dark(#ffffffc4, #1e1f25c9);
   --glass-edge: light-dark(#ffffffb3, #ffffff26);
-  --glass-blur: blur(22px) saturate(190%);
+  --glass-blur: blur(24px) saturate(180%);
   --glass-shine: linear-gradient(180deg, light-dark(#ffffffb3, #ffffff2e) 0%, #fff0 42%, #fff0 72%, light-dark(#ffffff40, #ffffff0f) 100%);
   --glass-shadow:
     inset 0 1px 0 light-dark(#ffffffe6, #ffffff33),
@@ -79,13 +79,14 @@
   --dock-bottom: calc(var(--safe-bottom) + var(--space-2) + var(--kb));
   --dock-space: calc(var(--fab) + var(--safe-bottom) + var(--space-8));
 
-  /* Shape: capsules for floating controls, concentric rounding for panels */
+  /* Shape: every radius = its box height ÷ 3; containers stay concentric (inner radius + padding) */
+  --radius-ratio: 3;
+  --radius-control: calc(var(--dock-btn) / var(--radius-ratio));
+  --radius-island: calc(var(--radius-control) + var(--space-1));
+  --radius-row: calc(48px / var(--radius-ratio));
+  --radius-panel: calc(var(--radius-row) + var(--space-2));
+  --radius-card: calc(var(--space-4) + 24px / var(--radius-ratio));
   --radius-pill: 999px;
-  --radius-panel: 30px;
-  --radius-card: 22px;
-  --radius-row: 14px;
-  --radius-chip: 12px;
-  --radius-sm: 9px;
 
   /* Type */
   --font: 'Figtree Variable', Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif;

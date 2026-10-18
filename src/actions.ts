@@ -5,7 +5,7 @@ import { CONFIG, MSG, TEMPLATES, type Kind } from './config';
 import { canHash, checkPin, deleteNote, hashPin, PIN_SCHEME, putNote, putPref, storageInfo } from './db';
 import {
   dropChecked, formatState, isBlank, lineEnd, lineStart, MARKS, minimalDiff, NEXT_HEADING, parseInline, parseLine,
-  setLineKind, sinkChecked, tagsOf, toggleCheck, toggleMark, uncheckAll, UNCHECKED, type LineKind, type Mark, titleIndex,
+  setLineKind, sinkChecked, toggleCard, tagsOf, toggleCheck, toggleMark, uncheckAll, UNCHECKED, type LineKind, type Mark, titleIndex,
 } from './markdown';
 import { releaseUrls } from './media';
 import { EMPTY_LAYER, findCollection, get, leastUsedColor, menuNote, noteById, openNote, readableNotes, set, tabFolder, tabLabel, visibleNotes } from './store';
@@ -243,7 +243,7 @@ export function backToReading() {
 }
 
 /* ---------- Formatting ---------- */
-export type FormatTool = Mark | LineKind | 'heading';
+export type FormatTool = Mark | LineKind | 'heading' | 'card';
 export const FORMAT_TOOLS: { id: FormatTool; label: string; keys: string; glyph?: string; icon?: string }[] = [
   { id: 'heading', label: 'Titre', keys: 'Alt+1, 2, 3', glyph: 'H' },
   { id: 'b', label: 'Gras', keys: 'B', glyph: 'B' },
@@ -253,10 +253,11 @@ export const FORMAT_TOOLS: { id: FormatTool; label: string; keys: string; glyph?
   { id: 'number', label: 'Liste numérotée', keys: 'Maj+7', icon: 'numbers' },
   { id: 'check', label: 'Liste à cocher', keys: 'Maj+9', icon: 'checklist' },
   { id: 'link', label: 'Lien vers une note', keys: 'K', icon: 'link' },
+  { id: 'card', label: 'Carte à réviser (Question :: Réponse)', keys: 'Maj+K', glyph: '::' },
 ];
 const SHORTCUTS: Record<string, FormatTool> = {
   KeyB: 'b', KeyI: 'i', 'Shift+KeyH': 'hl', 'Shift+Digit8': 'bullet', 'Shift+Digit7': 'number', 'Shift+Digit9': 'check',
-  KeyK: 'link', 'Alt+Digit1': 'h1', 'Alt+Digit2': 'h2', 'Alt+Digit3': 'h3', 'Alt+Digit0': 'text',
+  KeyK: 'link', 'Shift+KeyK': 'card', 'Alt+Digit1': 'h1', 'Alt+Digit2': 'h2', 'Alt+Digit3': 'h3', 'Alt+Digit0': 'text',
 };
 export const toggleFormatBar = () => setPref('formatBar', !get().prefs.formatBar);
 
@@ -268,7 +269,7 @@ export function applyFormat(tool: FormatTool) {
     if (!(tool in MARKS) && el.value.slice(lineStart(el.value, el.value.length)).trim()) replaceText(el, el.value.length, el.value.length, '\n');
   }
   const { value, selectionStart: a, selectionEnd: b } = el;
-  const edit = tool === 'heading'
+  const edit = tool === 'card' ? toggleCard(value, a, b) : tool === 'heading'
     ? setLineKind(value, a, b, NEXT_HEADING[parseLine(value.slice(lineStart(value, a), lineEnd(value, a))).kind] || 'h1')
     : tool in MARKS ? toggleMark(value, a, b, tool as Mark) : setLineKind(value, a, b, tool as LineKind);
   const d = minimalDiff(value, edit.value);

@@ -137,7 +137,7 @@ function LinkMap() {
               <g key={k} className={'map-node' + (v.ghost ? ' is-ghost' : '') + (k === g.center ? ' is-center' : '')} data-color={color} role="button" tabIndex={0}
                 aria-label={(v.ghost ? 'Créer la note ' : 'Ouvrir la note ') + v.label} transform={`translate(${p.x - w / 2},${p.y - 18})`}
                 onClick={() => go(v)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(v); } }}>
-                <rect width={w} height={36} rx={18} />
+                <rect width={w} height={36} rx={12} />
                 {color && <circle cx={14} cy={18} r={4} />}
                 <text x={color ? 24 : 14} y={18} dominantBaseline="central">{(v.ghost ? '+ ' : '') + (v.label.length > 24 ? v.label.slice(0, 23) + '…' : v.label)}</text>
               </g>

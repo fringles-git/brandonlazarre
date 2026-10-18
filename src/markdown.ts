@@ -196,11 +196,22 @@ export function toggleMark(value: string, start: number, end: number, mark: Mark
   return { value: value.slice(0, from) + out.join('\n') + value.slice(to), start: s, end: e };
 }
 
+/** Turns the caret line into a flashcard "Question :: " (caret after ::), or back into plain text. */
+export function toggleCard(value: string, start: number, end: number): Edit {
+  const from = lineStart(value, start), to = lineEnd(value, end), line = value.slice(from, to), at = line.indexOf(' :: ');
+  if (at > -1) {
+    const next = line.slice(0, at) + (line.slice(at + 4) ? ' ' + line.slice(at + 4) : '');
+    return { value: value.slice(0, from) + next + value.slice(to), start: from + next.length, end: from + next.length };
+  }
+  const next = line.trimEnd() + ' :: ', pos = from + next.length;
+  return { value: value.slice(0, from) + next + value.slice(to), start: pos, end: pos };
+}
+
 /** Formatting state at the caret: line kind and active marks. */
 export function formatState(value: string, start: number, end: number) {
   const from = lineStart(value, start), line = value.slice(from, lineEnd(value, start));
   const a = start - from, b = Math.min(end - from, line.length);
-  return { kind: parseLine(line).kind, marks: (Object.keys(MARKS) as Mark[]).filter(m => markAt(line, a, b, m, false)) };
+  return { kind: parseLine(line).kind, marks: (Object.keys(MARKS) as Mark[]).filter(m => markAt(line, a, b, m, false)), card: line.includes(' :: ') };
 }
 export type FormatState = ReturnType<typeof formatState>;
 

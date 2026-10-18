@@ -113,7 +113,7 @@ function FormatStrip({ state }: { state: FormatState | null }) {
     <div className="format-strip island glass" role="toolbar" aria-label="Mise en forme">
       {FORMAT_TOOLS.map(t => {
         const heading = t.id === 'heading', label = heading && level ? `${t.label} (niveau ${level})` : t.label;
-        const on = !!state && (heading ? level > 0 : state.kind === t.id || state.marks.includes(t.id as never));
+        const on = !!state && (heading ? level > 0 : (t.id === 'card' ? state.card : state.kind === t.id || state.marks.includes(t.id as never)));
         return (
           <button key={t.id} className="icon-btn" onClick={() => applyFormat(t.id)} aria-label={label} aria-pressed={on} title={finePointer() ? `${label} (${MOD}${t.keys})` : undefined}>
             {t.icon ? <Icon name={t.icon} /> : <span className={'glyph glyph-' + t.id} aria-hidden="true">{t.glyph}{heading && level ? <sub>{level}</sub> : null}</span>}
