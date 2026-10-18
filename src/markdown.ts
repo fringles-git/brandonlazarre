@@ -349,3 +349,12 @@ export function snippet(text: string, at: number, len: number) {
   if (b < text.length) b = text.lastIndexOf(' ', b) > at + len ? text.lastIndexOf(' ', b) : b;
   return (a > 0 ? '…' : '') + text.slice(a, b).trim().replace(/\s*\n\s*/g, ' · ') + (b < text.length ? '…' : '');
 }
+
+/** What a note offers beyond its text: outline, flashcards, links, checked items. */
+export function noteTools(n: Note, notes: Note[]) {
+  const cards = flashcards(n.body).length;
+  return {
+    heads: outline(n.body).length, cards, due: cards ? dueCards(n).length : 0, done: checkStats(n.body).done,
+    linked: entities(n).links.length > 0 || backlinks(n, notes).length > 0,
+  };
+}

@@ -173,12 +173,20 @@ function CardFooter({ note }: { note: Note }) {
   const { done, total } = checkStats(note.body), due = dueCards(note).length, remind = !!note.remind && !note.remindDone;
   const items = [
     note.atts.length > 0 && <Count key="a" icon="attach" text={String(note.atts.length)} spoken={plural(note.atts.length, 'pièce jointe', 'pièces jointes')} />,
-    total > 0 && <Count key="l" icon="checklist" text={done ? `${done}/${total}` : String(total)} spoken={`${done} sur ${total} cochés`} className={done === total ? 'is-done' : ''} />,
     due > 0 && <Count key="d" icon="study" text={String(due)} spoken={plural(due, 'carte à réviser', 'cartes à réviser')} />,
     remind && <Count key="r" icon="bell" text={dayTime(note.remind!)} spoken={'Rappel ' + dayTime(note.remind!)} />,
     note.by === 'ai' && <span key="ai" className="count">IA</span>,
   ].filter(Boolean);
-  return items.length ? <div className="card-footer">{items}</div> : null;
+  return <>
+    {total > 0 && (
+      <div className={'card-progress' + (done === total ? ' is-done' : '')} role="progressbar" aria-label="Progression de la liste"
+        aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-valuetext={`${done} sur ${total}`}>
+        <span className="progress-track"><span className="progress-fill" style={{ '--progress': Math.round((done / total) * 100) + '%' } as React.CSSProperties} /></span>
+        <span aria-hidden="true">{done}/{total}</span>
+      </div>
+    )}
+    {items.length > 0 && <div className="card-footer">{items}</div>}
+  </>;
 }
 
 interface CardProps {

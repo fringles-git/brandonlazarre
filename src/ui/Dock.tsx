@@ -59,8 +59,10 @@ function SearchDock() {
         <button className="chip glass" aria-pressed={!s.kind} onClick={() => s.kind && toggleKind(s.kind)}>Tout</button>
         {kinds.map(k => <button key={k} className="chip glass" aria-pressed={s.kind === k} onClick={() => toggleKind(k)}><Icon name={KIND_ICON[k]} />{tabLabel(k)}</button>)}
         {(s.query.trim() || s.kind) && <button className="chip glass is-quiet" onClick={saveCollection} aria-label="Enregistrer cette recherche comme collection"><Icon name="filter" />Enregistrer</button>}
-        {recents.map(r => <button key={r} className="chip glass is-quiet" onClick={() => { setQuery(r); input.current?.focus(); }} aria-label={'Rechercher ' + r}><Icon name="history" />{r}</button>)}
-        {recents.length > 0 && <button className="text-btn" onClick={clearRecents}>Effacer</button>}
+        {recents.length > 0 && <span className="chip-group" role="group" aria-label="Recherches récentes">
+          {recents.map(r => <button key={r} className="chip glass is-quiet" onClick={() => { setQuery(r); input.current?.focus(); }} aria-label={'Rechercher ' + r}><Icon name="history" />{r}</button>)}
+          <button className="text-btn" onClick={clearRecents}>Effacer</button>
+        </span>}
       </div>
       <div className="thumb-row">
         <label className="search-field island glass">

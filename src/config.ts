@@ -108,6 +108,19 @@ const RELEASES: Omit<Release, 'version'>[] = [
   {
     date: '2026-10-18',
     changes: {
+      new: [
+        'Note du jour dans Créer : rouvre celle d’aujourd’hui si elle existe',
+        'Sous le titre d’une note : Plan, cartes à réviser et carte des liens en un geste',
+      ],
+      better: [
+        'Les listes affichent une barre de progression sur leur carte',
+        'Restaurer une version indique sa date',
+      ],
+    },
+  },
+  {
+    date: '2026-10-18',
+    changes: {
       better: [
         'Trier s’ouvre en liste déroulante sous le bouton, la page reste nette derrière',
         'En thème sombre, les barres sont en verre clair au lieu d’un bloc noir',

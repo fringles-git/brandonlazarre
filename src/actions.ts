@@ -10,7 +10,7 @@ import {
 import { releaseUrls } from './media';
 import { EMPTY_LAYER, findCollection, get, leastUsedColor, menuNote, noteById, openNote, readableNotes, set, tabFolder, tabLabel, visibleNotes } from './store';
 import { stopRecording } from './features';
-import { caretTop, focusAt, fullDay, haptic, plural, reducedMotion, replaceText } from './utils';
+import { caretTop, dayTime, focusAt, fullDay, haptic, plural, reducedMotion, replaceText } from './utils';
 
 /* ---------- Persistence ---------- */
 export function persist(n: Note) {
@@ -208,7 +208,7 @@ export function restoreVersion(i: number) {
   const cur = openNote(get())!;
   editNote({ title: v.title, body: v.body, versions: pushVersion(cur.versions, { title: cur.title, body: cur.body, t: cur.updated }) }, { save: 'now' });
   patchEditor({ reading: shouldRead(v.body), snapshot: { title: v.title, body: v.body, t: Date.now() } });
-  toast('Version restaurée.');
+  toast('Version du ' + dayTime(v.t) + ' restaurée.');
 }
 
 /** Leaves the formatted view and puts the caret at a line/offset of the source. */
@@ -335,9 +335,11 @@ export const clearChecked = () => bulkList(dropChecked, 'Éléments cochés supp
 
 /* ---------- Creating ---------- */
 /** Turns the open (empty) note into a list, a flashcard, a meeting… and puts the caret where to type. */
+const todayNote = () => { const title = fullDay(Date.now()); return get().notes.find(n => !n.deleted && n.title === title); };
 export function applyTemplate(id: string) {
-  const t = TEMPLATES.find(x => x.id === id)!, n = openNote(get());
+  const t = TEMPLATES.find(x => x.id === id)!, n = openNote(get()), today = id === 'today' && todayNote();
   if (!n) return;
+  if (today && today.id !== n.id) return open(today.id);
   editNote({ title: n.title || t.title(new Date()), body: t.body.replace('¦', '') });
   flushSync(() => patchEditor({ focus: null, reading: false }));
   if (editorRefs.body) focusAt(editorRefs.body, Math.max(0, t.body.indexOf('¦')));
@@ -349,8 +351,8 @@ export function fromTemplate(id: string) {
 }
 export function dailyNote() {
   closeLayer();
-  const title = fullDay(Date.now()), existing = get().notes.find(n => !n.deleted && n.title === title);
-  if (existing) return open(existing.id);
+  const today = todayNote();
+  if (today) return open(today.id);
   fromTemplate('today');
 }
 /** [[Title]]: opens that note, or creates it. */

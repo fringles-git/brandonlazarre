@@ -3,14 +3,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { Attachment, Note } from '../types';
 import { CONFIG, DAY, TEMPLATES } from '../config';
-import { backlinks, entities, headingLevel, hostOf, titleIndex, withScheme, wordCount, type FormatState } from '../markdown';
+import { backlinks, entities, headingLevel, hostOf, noteTools, titleIndex, withScheme, wordCount, type FormatState } from '../markdown';
 import { urlOf } from '../media';
 import { openNote, readableNotes, useStore } from '../store';
 import {
   applyFormat, applyTemplate, backToReading, caretFormat, closeEditor, editAt, editField, editorRefs, extractSelection, FORMAT_TOOLS, onEditorKey,
-  open, openImport, openLink, openNoteMenu, patchEditor, removeAtt, setTab, toggleFormatBar, toggleOpenCheck,
+  open, openImport, openLayer, openLink, openNoteMenu, patchEditor, removeAtt, setTab, toggleFormatBar, toggleOpenCheck,
 } from '../actions';
-import { audioRate, cycleRate, editorAudios, pauseOthers, toCalendar } from '../features';
+import { audioRate, cycleRate, editorAudios, openMap, pauseOthers, startStudy, toCalendar } from '../features';
 import { clock, dayOrTime, eventDate, finePointer, goUrl, isToday, openUrl, plural, rate } from '../utils';
 import { Chip, FolderTag, Formatted } from './kit';
 import { Icon } from './icons';
@@ -20,7 +20,20 @@ function SaveStatus() {
   const s = useStore(useShallow(s => ({ status: s.editor.saveStatus, last: s.editor.lastSaved, mem: s.memOnly })));
   const label = s.mem ? 'Non conservé' : { saving: 'Enregistrement…', error: 'Non enregistré', modified: 'Modifié', saved: 'Enregistré' }[s.status];
   const when = s.status === 'saved' && !s.mem && s.last ? (isToday(s.last) ? ' à ' : ' le ') + dayOrTime(s.last) : '';
-  return <span className="save-status" data-status={s.status} aria-live="polite" title={label + when}><i aria-hidden="true" /><span>{label}</span><span className="visually-hidden">{when}</span></span>;
+  return <span className="save-status" data-status={s.status} aria-live="polite" title={s.mem ? label + ' : stockage indisponible' : label + when}><i aria-hidden="true" /><span>{label}</span><span className="visually-hidden">{when}</span></span>;
+}
+
+/** Outline, flashcards and link map, one tap away under the title. */
+function Tools({ note }: { note: Note }) {
+  const { heads, cards, due, linked } = noteTools(note, useStore(readableNotes));
+  if (note.deleted || (heads < 2 && !cards && !linked)) return null;
+  return (
+    <div className="chips note-tools" role="group" aria-label="Outils de la note">
+      {heads > 1 && <Chip icon="outline" label="Plan" aria={'Plan de la note : ' + plural(heads, 'titre', 'titres')} onClick={() => openLayer('outline')} />}
+      {cards > 0 && <Chip icon="study" label={due ? plural(due, 'carte à réviser', 'cartes à réviser') : plural(cards, 'carte', 'cartes')} aria="Réviser les cartes de cette note" onClick={() => startStudy([note])} />}
+      {linked && <Chip icon="graph" label="Carte des liens" aria="Voir la carte des liens autour de cette note" onClick={() => openMap(note.id)} />}
+    </div>
+  );
 }
 
 /** Dates, places, numbers and links found in the note, as buttons. */
@@ -209,6 +222,7 @@ export function Editor() {
           {note?.folder && <> · <FolderTag folder={note.folder} /></>}
           {words > 0 && <> · {plural(words, 'mot', 'mots')}</>}
         </p>
+        {note && <Tools note={note} />}
         {trashed && <div className="notice">Cette note est dans la corbeille.{daysLeft ? ' Suppression définitive dans ' + plural(daysLeft, 'jour', 'jours') + '.' : ''} ⋮ pour la restaurer.</div>}
         {s.attWarn && <div className="notice alert" role="alert">Fichier volumineux : l’application peut ralentir.</div>}
         {note && note.atts.length > 0 && <Attachments note={note} />}

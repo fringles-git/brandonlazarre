@@ -1,16 +1,17 @@
 /** Bottom sheets that pop over the list or the editor, from the thumb side: create, note menu, library, pickers, PIN… */
+import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { LayerMode, Note } from '../types';
 import { FOLDER_COLORS, KIND_ICON, KIND_TONE, KINDS } from '../config';
-import { checkStats, dueCards, entities, flashcards, outline, backlinks, stripCheck, tagsOf } from '../markdown';
+import { checkStats, entities, noteTools, outline, stripCheck, tagsOf } from '../markdown';
 import { countIn, folderColor, get, menuNote, openNote, readableNotes, tabFolder, tabLabel, useStore, type State } from '../store';
 import {
-  clearChecked, closeLayer, createAndOpen, deleteCollection, deleteFolder, menuDeleteForever, menuHide, menuPin,
+  clearChecked, closeLayer, createAndOpen, dailyNote, deleteCollection, deleteFolder, menuDeleteForever, menuHide, menuPin,
   menuRestore, menuTrash, moveSelection, moveTo, openLayer, openPicker, patchLayer, renameCollection, renameFolder, resetPin, restoreVersion,
   setFolderColor, setPref, setTab, submitFolder, submitPin, toggleEditFolders, toggleNewFolder, uncheckList, editorRefs,
 } from '../actions';
 import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
-import { caretTop, dayOrTime, dayTime, finePointer, plural } from '../utils';
+import { caretTop, day, dayOrTime, dayTime, finePointer, plural } from '../utils';
 import { InlineForm, Layer, Option, Row, shown } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
@@ -40,6 +41,7 @@ function Create() {
         {tile('mic', 'mic', 'red', 'Vocal', 'Enregistrer', () => { closeLayer(); toggleRecording(); })}
         {tile('import', 'download', 'blue', 'Importer', 'Photo, PDF, fichier', () => { useStore.setState({ importTarget: 'new' }); openLayer('import'); })}
       </div>
+      <Row icon="calendar" label="Note du jour" trailing={day(Date.now())} onClick={dailyNote} />
     </>
   );
 }
@@ -67,8 +69,7 @@ function Import() {
 
 /* ---------- Note menu ---------- */
 function NoteTools({ note }: { note: Note }) {
-  const readable = useStore(readableNotes), heads = outline(note.body).length, cards = flashcards(note.body).length, due = dueCards(note).length;
-  const done = checkStats(note.body).done, linked = entities(note).links.length > 0 || backlinks(note, readable).length > 0;
+  const { heads, cards, due, done, linked } = noteTools(note, useStore(readableNotes));
   return (
     <>
       {heads > 1 && <Row icon="outline" label="Plan" trailing={plural(heads, 'titre', 'titres')} onClick={() => openLayer('outline')} />}
@@ -357,7 +358,7 @@ function goToLine(line: number) {
   if (finePointer()) el.focus({ preventScroll: true });
 }
 function Outline() {
-  const heads = useStore(s => outline(openNote(s)?.body || ''));
+  const body = useStore(s => openNote(s)?.body || ''), heads = useMemo(() => outline(body), [body]);
   return <><Title>Plan</Title>{heads.map(h => <Row key={h.line} className={'row row-h' + h.level} icon="outline" label={h.text} onClick={() => goToLine(h.line)} />)}</>;
 }
 function Sort() {
