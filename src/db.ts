@@ -45,7 +45,7 @@ export function normalizeNote(raw: Record<string, unknown>): Note {
     folder: '', by: 'me', created: Date.now(), updated: Date.now(),
     ...n,
     id: Number(n.id), title: String(n.title || ''), body: String(n.body || ''),
-    pinned: !!n.pinned, locked: !!n.locked,
+    pinned: !!n.pinned, locked: !!n.locked, sealedOnly: !!n.sealed,
     atts: (Array.isArray(n.atts) ? n.atts : att ? [att] : []).filter((a: Attachment) => a && a.type),
     versions: Array.isArray(n.versions) ? n.versions : [],
   };
@@ -85,8 +85,8 @@ async function attToBackup(a: Attachment): Promise<Attachment> {
 export async function backupBlob(notes: Note[], folders: string[], folderColors: Record<string, number>) {
   let out = new Blob([JSON.stringify({ app: 'notes', version: 1, exported: new Date().toISOString(), folders, folderColors }).slice(0, -1) + ',"notes":[']);
   for (const [i, n] of notes.entries()) {
-    const atts = await Promise.all(n.atts.map(attToBackup));
-    out = new Blob([out, (i ? ',' : '') + JSON.stringify({ ...n, atts })]);
+    const atts = await Promise.all(n.atts.map(attToBackup)), { sealed: _s, sealedOnly: _o, ...plain } = n;   // backups hold notes in clear
+    out = new Blob([out, (i ? ',' : '') + JSON.stringify({ ...plain, atts })]);
   }
   return new Blob([out, ']}'], { type: 'application/json' });
 }

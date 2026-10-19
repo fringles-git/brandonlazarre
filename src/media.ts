@@ -94,6 +94,41 @@ export function ocrText(blob: Blob) {
   return job;
 }
 
+/* ---------- Speech to text on the device (public/vendor/extra/asr/worker.js) ---------- */
+/** The recording as 16 kHz mono samples, what Whisper reads. */
+async function pcm16k(blob: Blob) {
+  const w = window as unknown as { OfflineAudioContext: typeof OfflineAudioContext; webkitOfflineAudioContext?: typeof OfflineAudioContext };
+  const Ctx = w.OfflineAudioContext || w.webkitOfflineAudioContext!, data = await blob.arrayBuffer();
+  const buf = await new Promise<AudioBuffer>((resolve, reject) => {
+    const p = new Ctx(1, 1, 16000).decodeAudioData(data, resolve, reject);
+    p?.then?.(resolve, reject);
+  });
+  const out = new Float32Array(buf.length);
+  for (let c = 0; c < buf.numberOfChannels; c++) buf.getChannelData(c).forEach((v, i) => { out[i] += v / buf.numberOfChannels; });
+  return out;
+}
+let asrWorker: Worker | null = null, asrSeq = 0, asrProgress: ((loaded: number, total: number) => void) | undefined;
+const asrJobs = new Map<number, { resolve: (t: string) => void; reject: (e: Error) => void }>();
+/** Transcribes a recording; `onLoading` hears the model download (first use only). */
+export async function transcribe(blob: Blob, onLoading?: (loaded: number, total: number) => void) {
+  const audio = await pcm16k(blob);
+  if (!asrWorker) {
+    asrWorker = new Worker(new URL('vendor/extra/asr/worker.js', location.href), { type: 'module' });
+    asrWorker.onmessage = ({ data }) => {
+      if (data.progress) return asrProgress?.(data.progress.loaded, data.progress.total);
+      const job = asrJobs.get(data.id);
+      asrJobs.delete(data.id);
+      if (data.error) job?.reject(Error(data.error)); else job?.resolve(data.text);
+    };
+  }
+  asrProgress = onLoading || asrProgress;
+  const id = ++asrSeq;
+  return new Promise<string>((resolve, reject) => {
+    asrJobs.set(id, { resolve, reject });
+    asrWorker!.postMessage({ id, audio }, [audio.buffer]);
+  });
+}
+
 /* ---------- Imports ---------- */
 export function splitTitle(md: string, fallback: string) {
   const h = md.match(/^\s*# +(.+)\n?/), body = (h ? md.slice(h[0].length) : md).replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').trimEnd();

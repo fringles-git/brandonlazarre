@@ -108,9 +108,11 @@ function LiveText({ note, att, quiet }: { note: Note; att: Attachment; quiet?: b
     setBusy(true);
     try { addAttText(await attText(note.id, att)); } catch { toast('Lecture impossible pour ce fichier.'); } finally { setBusy(false); }
   };
+  const audio = att.type === 'audio';
   return (
-    <button className={quiet ? 'text-btn att-live' : 'chip glass att-live'} disabled={busy} onClick={run} aria-label="Ajouter le texte de ce fichier à la note">
-      {!quiet && <Icon name="liveText" />}{busy ? 'Lecture…' : 'Ajouter le texte'}
+    <button className={quiet ? 'text-btn att-live' : 'chip glass att-live'} disabled={busy} onClick={run}
+      aria-label={audio ? 'Ajouter la transcription de cet enregistrement à la note' : 'Ajouter le texte de ce fichier à la note'}>
+      {!quiet && <Icon name="liveText" />}{busy ? (audio ? 'Transcription…' : 'Lecture…') : audio ? 'Ajouter la transcription' : 'Ajouter le texte'}
     </button>
   );
 }
@@ -121,7 +123,7 @@ function Attachments({ note }: { note: Note }) {
     <div className={'atts' + (many ? ' is-multi' : '')}>
       {note.atts.map((a, i) => (
         <div key={i} className={'att att-' + a.type}>
-          {a.type === 'audio' ? <Player att={a} name={nth(i)} />
+          {a.type === 'audio' ? <><Player att={a} name={nth(i)} /><LiveText note={note} att={a} quiet /></>
             : a.type === 'pdf' ? <>
               <Icon name="doc" />
               <span className="att-pdf-text"><span className="pdf-name">{a.name || 'Document PDF'}</span><span className="pdf-meta">{pdfMeta(a)}</span></span>

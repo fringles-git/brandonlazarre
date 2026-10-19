@@ -1,5 +1,5 @@
 /** Full sheets: study, link map, overview, settings, about, what's new — plus toast and print area. */
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/react/shallow';
 import type { ChangeKind, Note, SheetMode } from '../types';
@@ -7,10 +7,11 @@ import { CHANGE_KINDS, CREDITS, CURRENT, findRelease, RELEASE_LIST, releasesSinc
 import { backlinks, dueCards, entities, flashcards, hostOf, masteredCount, nextDue, titleIndex, withScheme } from '../markdown';
 import { urlOf } from '../media';
 import { folderColor, noteById, readableNotes, tabFolder, tabLabel, tabNotes, useStore } from '../store';
-import { closeSheet, open, openLink, openSheet, runToastAction } from '../actions';
+import { changePin, closeSheet, open, openLink, openSheet, runToastAction, toggleDeviceUnlock } from '../actions';
+import { deviceAvailable } from '../vault';
 import {
   answer, deleteCard, exportBackup, exportMarkdown, exportSlides, exportVault, install, lastBackupLabel, openGuide, openNews, printTab,
-  retryMissed, reveal, startStudy, startTour, studyNotes, toggleOcr, openMap,
+  retryMissed, reveal, startStudy, startTour, studyNotes, toggleAsr, toggleOcr, openMap,
 } from '../features';
 import { bytes, clock, day, dayTime, fmt, plural, time } from '../utils';
 import { Chip, Formatted, HANDS, Layer, Row, Segmented, StateMark, Switch, THEMES } from './kit';
@@ -203,7 +204,11 @@ function Settings() {
   const s = useStore(useShallow(s => ({
     lastBackup: s.prefs.lastBackup, canInstall: !!s.install.prompt, ocr: !!s.prefs.ocr,
     read: s.notes.reduce((t, n) => t + n.atts.filter(a => a.type === 'image' && a.text != null).length, 0),
+    asr: !!s.prefs.asr, heard: s.notes.reduce((t, n) => t + n.atts.filter(a => a.type === 'audio' && a.text != null).length, 0),
+    pin: !!s.pinHash, device: !!s.vault?.device,
   })));
+  const [canDevice, setCanDevice] = useState(false);
+  useEffect(() => { deviceAvailable().then(setCanDevice); }, []);
   return (
     <div className="cols">
       <div>
@@ -215,6 +220,12 @@ function Settings() {
         {s.canInstall && <><h4>Application</h4><button className="option" onClick={install}>Installer l’app sur cet appareil</button></>}
         <h4>Recherche</h4>
         <Switch on={s.ocr} label="Texte dans les photos" note={s.ocr ? (s.read ? plural(s.read, 'photo lue', 'photos lues') : '') : '≈ 5 Mo, sur l’appareil'} onClick={toggleOcr} />
+        <Switch on={s.asr} label="Texte des notes vocales" note={s.asr ? (s.heard ? plural(s.heard, 'note vocale transcrite', 'notes vocales transcrites') : '') : '≈ 55 Mo, sur l’appareil'} onClick={toggleAsr} />
+        {s.pin && <>
+          <h4>Notes masquées</h4>
+          {canDevice && <Switch on={s.device} label="Face ID ou empreinte" note={s.device ? 'Ouvre les notes masquées' : 'Le code PIN suffit aussi'} onClick={toggleDeviceUnlock} />}
+          <button className="option" onClick={changePin}>Changer le code PIN</button>
+        </>}
         <h4>Sauvegarde</h4>
         <button className="option" onClick={exportBackup}><span>Exporter les notes</span><small>{lastBackupLabel(s.lastBackup)}</small></button>
         <button className="option" onClick={() => pickFile('backup')}>Importer une sauvegarde</button>

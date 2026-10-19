@@ -8,14 +8,15 @@ import {
   setLineKind, sinkChecked, toggleCard, tagsOf, toggleCheck, toggleMark, uncheckAll, UNCHECKED, type LineKind, type Mark, titleIndex,
 } from './markdown';
 import { releaseUrls } from './media';
-import { EMPTY_LAYER, findCollection, get, leastUsedColor, menuNote, noteById, openNote, readableNotes, set, tabFolder, tabLabel, visibleNotes } from './store';
+import { EMPTY_LAYER, findCollection, get, leastUsedColor, menuNote, noteById, openNote, readableNotes, set, tabFolder, tabLabel, useStore, visibleNotes } from './store';
+import { addDevice, createVault, forget, isOpen as vaultOpen, openWithDevice, openWithPin, rewrapPin, toRecord, unseal } from './vault';
 import { stopRecording } from './features';
 import { caretTop, dayTime, focusAt, fullDay, haptic, plural, reducedMotion, replaceText } from './utils';
 
 /* ---------- Persistence ---------- */
 export function persist(n: Note) {
   if (get().memOnly) return Promise.resolve();
-  return putNote(n).then(() => undefined, (e: DOMException) => {
+  return toRecord(n, get().vault).then(putNote).then(() => undefined, (e: DOMException) => {
     toast(e?.name === 'QuotaExceededError' ? 'Stockage plein : cette note n’a pas été enregistrée.' : 'Échec de l’enregistrement de la note.');
     throw e;
   });
@@ -24,6 +25,9 @@ const persistQuiet = (n: Note) => { persist(n).catch(() => {}); };
 const savePref = (id: string, data: unknown) => { if (!get().memOnly) putPref(id, data).catch(() => {}); };
 export const saveFolders = () => { savePref('F', get().folders); savePref('FC', get().folderColors); };
 const savePin = () => savePref('PIN', get().pinHash);
+const saveVault = () => savePref('VAULT', get().vault);
+// Closing Notes masquées forgets the private key; the next opening asks again
+useStore.subscribe((s, prev) => { if (prev.hiddenUnlocked && !s.hiddenUnlocked) forget(); });
 
 export function setPref<K extends keyof Prefs>(key: K, value: Prefs[K]) {
   set(s => ({ prefs: { ...s.prefs, [key]: value } }));
@@ -600,6 +604,44 @@ export function unlock(then: () => void) {
   askPin(get().pinHash ? 'auth' : 'new', then);
 }
 export const changePin = () => askPin('change', null);
+
+/** Decrypts the hidden notes into memory (after the PIN or the device). Notes hidden under an older PIN are sealed now. */
+async function revealHidden(then: (() => void) | null) {
+  const opened = new Map<number, Note>();
+  await Promise.all(get().notes.filter(n => n.sealedOnly && n.sealed).map(async n => {
+    try { opened.set(n.id, { ...n, ...(await unseal(n.sealed!)), sealedOnly: false }); } catch { /* unreadable: stays sealed */ }
+  }));
+  if (opened.size) set(s => ({ notes: s.notes.map(n => opened.get(n.id) || n) }));
+  get().notes.filter(n => n.locked && !n.sealed).forEach(persistQuiet);
+  set({ hiddenUnlocked: true });
+  closeLayer();
+  then?.();
+}
+/** Face ID / fingerprint, where the vault has it. */
+export async function unlockWithDevice() {
+  const v = get().vault, then = pinThen;
+  if (!v?.device) return;
+  try { await openWithDevice(v); } catch { return toast('Déverrouillage annulé : saisissez le code PIN.'); }
+  await revealHidden(then);
+}
+/** Réglages: adds or removes Face ID / fingerprint. Needs the notes open, and a fresh tap for the system prompt. */
+export async function toggleDeviceUnlock() {
+  const v = get().vault;
+  if (!v) return;
+  if (v.device) {
+    set({ vault: { ...v, device: undefined } });
+    saveVault();
+    return toast('Face ID ou empreinte retiré : le code PIN ouvre les notes masquées.');
+  }
+  if (!get().hiddenUnlocked || !vaultOpen()) return unlock(() => toast('Notes masquées ouvertes : touchez à nouveau pour ajouter Face ID ou l’empreinte.'));
+  try {
+    set({ vault: await addDevice(v) });
+    saveVault();
+    toast('Face ID ou empreinte ajouté : il ouvre les notes masquées.');
+  } catch (e) {
+    toast((e as Error).message === 'no-prf' ? 'Cet appareil ne sait pas chiffrer avec la biométrie : gardez le code PIN.' : 'Ajout annulé.');
+  }
+}
 let pinBusy = false;
 /** Returns true when the input may be cleared and closed. */
 export async function submitPin(raw: string) {
@@ -610,19 +652,23 @@ export async function submitPin(raw: string) {
     if (step === 'new') {
       if (pin.length < 4) { toast('Le code PIN doit contenir au moins 4 chiffres.'); return true; }
       if (!canHash()) { toast('Un code PIN demande une page sécurisée (https).'); return true; }
-      set({ pinHash: await hashPin(pin) });
+      const v = s.vault;
+      set({ pinHash: await hashPin(pin), vault: !v ? await createVault(pin) : vaultOpen() ? await rewrapPin(v, pin) : v });
       savePin();
+      saveVault();
       closeLayer();
       toast('Code PIN enregistré.');
       then?.();
+      if (!get().hiddenUnlocked) forget();
       return true;
     }
     if (!(await checkPin(pin, s.pinHash))) { toast('Code PIN incorrect.'); return false; }
+    // The same PIN opens the vault (or creates it, for notes hidden before encryption)
+    if (s.vault) await openWithPin(s.vault, pin);
+    else { set({ vault: await createVault(pin) }); saveVault(); }
     if (step === 'change') { patchLayer({ pinStep: 'new' }); return false; }
     if (!(s.pinHash || '').startsWith(PIN_SCHEME) && canHash()) { set({ pinHash: await hashPin(pin) }); savePin(); }
-    set({ hiddenUnlocked: true });
-    closeLayer();
-    then?.();
+    await revealHidden(then);
     return true;
   } finally { pinBusy = false; }
 }
@@ -630,8 +676,10 @@ export function resetPin() {
   if (!get().layer.resetArmed) return patchLayer({ resetArmed: true });
   const hidden = get().notes.filter(n => n.locked);
   removeNotes(hidden);
-  set({ pinHash: null });
+  set({ pinHash: null, vault: null });
+  forget();
   savePin();
+  saveVault();
   patchLayer({ pinStep: 'new', resetArmed: false });
   toast(hidden.length ? plural(hidden.length, 'note supprimée', 'notes supprimées') + ' définitivement' : 'Code PIN réinitialisé.');
 }

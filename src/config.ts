@@ -96,6 +96,7 @@ export const CREDITS: [string, string][] = [
   ['Figtree', 'police · SIL Open Font License'],
   ['pdf.js', 'lecture des PDF · Apache 2.0'],
   ['Tesseract.js', 'texte des photos · Apache 2.0'],
+  ['Transformers.js, ONNX Runtime, Whisper', 'texte des notes vocales · Apache 2.0, MIT'],
   ['PptxGenJS', 'export PowerPoint · MIT'],
   ['React, Zustand', 'interface · MIT'],
 ];
@@ -109,6 +110,20 @@ export const CHANGE_KINDS = [
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-19',
+    changes: {
+      new: [
+        'Notes masquées chiffrées sur l’appareil : texte, photos et versions ne se lisent qu’avec votre code PIN',
+        'Face ID ou empreinte ouvre les notes masquées, là où l’appareil le permet (Réglages › Notes masquées)',
+        'Texte des notes vocales : transcrites sur l’appareil, elles se retrouvent dans la recherche (Réglages › Recherche)',
+        'Ajouter la transcription : sur un enregistrement, ses mots vont dans la note',
+      ],
+      better: [
+        'Une note vocale prend pour titre ses premiers mots',
+      ],
+    },
+  },
   {
     date: '2026-10-19',
     changes: {
@@ -398,10 +413,10 @@ Ctrl sur Windows, ⌘ sur Mac :
 - **Appui long**, ou **S** au clavier : sélectionner plusieurs notes (déplacer, fusionner, partager)
 - **Clic droit** sur une note, à la souris : son menu
 - **⋮** sur une note : épingler, déplacer, rappel, partager, masquer
-- **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (code PIN), corbeille
+- **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (chiffrées, code PIN ou Face ID / empreinte), corbeille
 
 # Retrouver
-**Recherche** lit aussi le texte des PDF et des photos ; **Ajouter le texte**, sur une photo ou un PDF, le met dans la note. **Enregistrer** garde une recherche comme collection. En haut de l’accueil : cartes ou liste, et trier.
+**Recherche** lit aussi le texte des PDF, des photos et des notes vocales ; **Ajouter le texte**, sur une photo, un PDF ou un enregistrement, le met dans la note. **Enregistrer** garde une recherche comme collection. En haut de l’accueil : cartes ou liste, et trier.
 
 # Réviser
 Une ligne « Question :: Réponse » devient une carte. **⋮ → Réviser** vous interroge au bon moment.

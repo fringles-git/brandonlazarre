@@ -488,6 +488,7 @@ body[data-hand='left'] :is(.layer, .sheet) { transform-origin: bottom left; }
 .option[aria-checked='true']:active .switch i { transform: translateX(14px); }
 
 .inline-form { display: flex; gap: var(--space-2); padding: var(--space-2); }
+.pin-device { display: flex; align-items: center; justify-content: center; gap: var(--space-2); width: calc(100% - 2 * var(--space-2)); margin: 0 var(--space-2) var(--space-1); }
 .inline-form input { flex: 1; min-width: 0; --h: 46px; height: var(--h); padding: 0 var(--space-4); border-radius: calc(var(--h) / var(--radius-ratio)); border: 1px solid var(--color-line); background: var(--color-card-solid); outline: none; font-size: var(--text-base); }
 .inline-form input:focus { border-color: var(--color-accent-deep); box-shadow: 0 0 0 3px light-dark(#f4c54255, #f4c54233); }
 .inline-form button { display: grid; place-items: center; --h: 46px; width: var(--h); height: var(--h); flex: none; border-radius: calc(var(--h) / var(--radius-ratio)); background: var(--color-accent); color: var(--color-on-accent); }
@@ -651,7 +652,8 @@ body.is-editing .editor-text { scroll-padding-bottom: 120px; }
 .att-pdf-text { flex: 1; min-width: 0; display: grid; }
 .att-remove { position: absolute; top: 8px; inset-inline-end: 8px; display: grid; place-items: center; --h: 32px; width: var(--h); height: var(--h); border-radius: calc(var(--h) / var(--radius-ratio)); background: #0007; color: #fff; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .att-remove svg { width: 16px; height: 16px; }
-.att-image .att-live { position: absolute; inset-inline-start: 8px; bottom: 8px; }   /* Live text, like the photo apps: bottom corner of the picture */
+.att-image .att-live { position: absolute; inset-inline-start: 8px; bottom: 8px; }
+.att-audio .att-live { margin: 0 var(--space-2) var(--space-2); }   /* Live text, like the photo apps: bottom corner of the picture */
 .att-live:disabled { opacity: .7; }
 .player { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 12px; padding: var(--space-3) 52px var(--space-3) var(--space-3); }
 .player-play { display: grid; place-items: center; --h: 44px; width: var(--h); height: var(--h); border-radius: calc(var(--h) / var(--radius-ratio)); background: var(--color-accent); color: var(--color-on-accent); }

@@ -1,9 +1,10 @@
 /** Features around the notes: capture & import, attachments analysis, audio, reminders, sharing, study, exports, onboarding, boot. */
 import type { Attachment, Note, Prefs } from './types';
+import type { Vault } from './vault';
 import { CONFIG, CURRENT, DAY, DEFAULT_FOLDERS, GUIDE_TITLE, HINTS, MSG, RELEASE_LIST, releasesSince, STARTER_NOTES, TOUR } from './config';
 import { attFromBackup, backupBlob, getAll, normalizeNote, openDb } from './db';
 import { dueCards, flashcards, grade, hostOf, removeCardLine, URL_RE } from './markdown';
-import { audioPeaks, epubToNotes, exportPptx, fileToAtt, htmlFileToNote, isHeavy, markdownToNote, ocrText, pdfText, releaseUrls, titleFromFile, zip } from './media';
+import { audioPeaks, epubToNotes, exportPptx, fileToAtt, htmlFileToNote, isHeavy, markdownToNote, ocrText, pdfText, releaseUrls, titleFromFile, transcribe, zip } from './media';
 import { get, noteById, openNote, set, tabFolder, tabLabel, tabNotes } from './store';
 import {
   checkTab, closeEditor, closeLayer, closeSearch, closeSheet, createAndOpen, createNote, editNote, endSelecting, fresh, open,
@@ -128,18 +129,42 @@ async function sharedFiles(fields: { title: string; text: string; url: string })
 const analysed = new WeakSet<Blob>();
 export function analyse(notes: Note[]) {
   notes.forEach(n => n.atts.forEach(a => {
-    if (!a.blob || analysed.has(a.blob)) return;
+    if (!a.blob) return;
     const blob = a.blob, done = (p: object) => patchAtt(n.id, blob, p), retry = () => analysed.delete(blob);
+    if (a.type === 'audio' && a.text == null && get().prefs.asr && !n.locked && !heard.has(blob)) {
+      heard.add(blob);
+      listen(blob).then(text => { done({ text }); titleFromSpeech(n.id, text); }).catch(() => heard.delete(blob));
+    }
+    if (analysed.has(blob)) return;
     if (a.type === 'audio' && !a.peaks && !n.locked) { analysed.add(blob); audioPeaks(blob).then(done).catch(() => {}); }
     else if (a.type === 'pdf' && a.text == null) { analysed.add(blob); pdfText(blob).then(done).catch(retry); }
     else if (a.type === 'image' && a.text == null && get().prefs.ocr && !n.locked) { analysed.add(blob); ocrText(blob).then(text => done({ text })).catch(retry); }
   }));
 }
-/** Live text: the words of a photo or PDF, read now if they were not yet (the photo setting may be off). */
+const heard = new WeakSet<Blob>();   // recordings sent to transcription this session
+export function toggleAsr() {
+  const on = !get().prefs.asr;
+  setPref('asr', on);
+  if (on) { analyse(get().notes); toast('Les notes vocales sont transcrites sur cet appareil : leur texte apparaîtra dans la recherche.'); }
+}
+/** Speech to text, with the one-time model download shown in a toast. */
+let shownAt = 0;
+const listen = (blob: Blob) => transcribe(blob, (loaded, total) => {
+  if (Date.now() - shownAt < 1500 && loaded < total) return;
+  shownAt = Date.now();
+  toast(loaded < total ? `Modèle de transcription : ${Math.round(loaded / 1e6)} / ${Math.round(total / 1e6)} Mo (une seule fois)` : 'Modèle prêt : transcription en cours…');
+});
+/** A voice note titled from its first words, while it still has the default title. */
+function titleFromSpeech(id: number, text: string) {
+  const n = noteById(id), words = text.replace(/\s+/g, ' ').trim().split(' ').slice(0, 7).join(' ').replace(/[,;:.!?…]+$/, '');
+  if (n && n.title === 'Note vocale' && !n.body.trim() && words) updateNote(n, { title: words + (text.trim().split(/\s+/).length > 7 ? '…' : '') });
+}
+/** Live text: the words of a photo, a PDF or a recording, read now if they were not yet (the settings may be off). */
 export async function attText(noteId: number, a: Attachment) {
   if (a.text != null || !a.blob) return a.text || '';
-  const text = a.type === 'image' ? await ocrText(a.blob) : a.type === 'pdf' ? (await pdfText(a.blob)).text : '';
+  const text = a.type === 'image' ? await ocrText(a.blob) : a.type === 'pdf' ? (await pdfText(a.blob)).text : await listen(a.blob);
   patchAtt(noteId, a.blob, { text });
+  if (a.type === 'audio') titleFromSpeech(noteId, text);
   return text;
 }
 /** Adds an attachment's words at the end of the open note, with undo. */
@@ -480,6 +505,7 @@ export async function boot() {
       else if (r.id === 'F' && Array.isArray(r.data)) loaded.folders = r.data;
       else if (r.id === 'FC' && r.data) loaded.folderColors = r.data as Record<string, number>;
       else if (r.id === 'PIN') loaded.pinHash = r.data as string;
+      else if (r.id === 'VAULT') loaded.vault = r.data as Vault | null;
     }
     loaded.notes = (await getAll<Record<string, unknown>>('notes')).map(normalizeNote);
     set(loaded);

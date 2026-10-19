@@ -27,6 +27,7 @@ const browser = await chromium.launch({
 
 const results = [];
 async function check(name, run, { viewport = { width: 390, height: 844 }, colorScheme = 'light', permissions = [] } = {}) {
+  if (process.env.ONLY && !new RegExp(process.env.ONLY).test(name)) return;   // ONLY=hidden npm run smoke: just those
   const ctx = await browser.newContext({ viewport, colorScheme, permissions, hasTouch: true, reducedMotion: 'reduce', locale: 'fr-FR', timezoneId: 'Europe/Paris' });
   const page = await ctx.newPage(), errors = [];
   await page.clock.setFixedTime(new Date('2026-10-19T10:00:00+02:00'));   // same dates on every run, for the shots
@@ -131,6 +132,88 @@ await check('export: every note as Markdown files in a valid .zip', async page =
   expect(list.includes('Notes/Bienvenue.md') && list.includes('Notes/Comment utiliser.md'), 'files in the archive: ' + list);
 });
 
+const hideBienvenue = async page => {
+  await page.getByRole('button', { name: 'Actions : Bienvenue' }).click();
+  await page.getByRole('button', { name: 'Masquer', exact: true }).click();
+  await page.fill('.pin-input', '1234');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => ![...document.querySelectorAll('#note-list .card-open')].some(c => c.textContent.includes('Bienvenue')));
+};
+const storedBienvenue = page => page.evaluate(() => new Promise(done => {
+  indexedDB.open('NotesAppDB').onsuccess = e => {
+    const all = e.target.result.transaction('notes').objectStore('notes').getAll();
+    all.onsuccess = () => { const n = all.result.find(x => x.title === 'Bienvenue'); done({ body: n.body, sealed: !!n.sealed?.data, bytes: n.sealed?.data?.byteLength || 0 }); };
+  };
+}));
+const openHidden = async page => {
+  await page.click('#nav-library');
+  await page.getByRole('button', { name: /Notes masquées/ }).click();
+};
+
+await check('hidden notes: the content is encrypted on the device, the PIN opens it', async page => {
+  await hideBienvenue(page);
+  let rec;
+  for (let i = 0; i < 20 && !(rec = await storedBienvenue(page)).sealed; i++) await page.waitForTimeout(250);
+  expect(rec.sealed && rec.body === '' && rec.bytes > 100, 'stored sealed, no clear body: ' + JSON.stringify(rec));
+  await page.reload();
+  await page.waitForSelector('#note-list .card');
+  await openHidden(page);
+  await page.fill('.pin-input', '1234');
+  await page.keyboard.press('Enter');
+  await openNote(page, 'Bienvenue');
+  await page.waitForSelector('#note-view:has-text("Notes garde vos idées")');
+});
+
+await check('hidden notes: notes hidden before encryption are sealed at the first opening', async page => {
+  await page.evaluate(async () => {   // the state an older version left: a PIN, a hidden note in clear, no vault
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('notes-pin:1234')))].map(b => b.toString(16).padStart(2, '0')).join('');
+    await new Promise(done => {
+      indexedDB.open('NotesAppDB').onsuccess = e => {
+        const t = e.target.result.transaction(['notes', 'prefs'], 'readwrite');
+        t.objectStore('prefs').put({ id: 'PIN', data: 'sha256:' + hash });
+        t.objectStore('notes').put({ id: 1, title: 'Ancienne', body: 'Secret en clair', folder: '', by: 'me', created: 1, updated: 1, pinned: false, locked: true, atts: [], versions: [] });
+        t.oncomplete = done;
+      };
+    });
+  });
+  await page.reload();
+  await page.waitForSelector('#note-list .card');
+  await openHidden(page);
+  await page.fill('.pin-input', '1234');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('#note-list .card-open:has-text("Ancienne")');
+  const sealed = () => page.evaluate(() => new Promise(done => {
+    indexedDB.open('NotesAppDB').onsuccess = e => { const r = e.target.result.transaction('notes').objectStore('notes').get(1); r.onsuccess = () => done(!!r.result.sealed && r.result.body === ''); };
+  }));
+  let ok = false;
+  for (let i = 0; i < 20 && !(ok = await sealed()); i++) await page.waitForTimeout(250);
+  expect(ok, 'the old hidden note is now stored sealed');
+});
+
+await check('hidden notes: Face ID or fingerprint opens them (virtual authenticator with PRF)', async page => {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('WebAuthn.enable');
+  await cdp.send('WebAuthn.addVirtualAuthenticator', { options: {
+    protocol: 'ctap2', ctap2Version: 'ctap2_1', transport: 'internal', hasResidentKey: true, hasUserVerification: true,
+    isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true,
+  } });
+  await hideBienvenue(page);
+  await page.click('#nav-settings');
+  const sw = page.getByRole('switch', { name: /Face ID ou empreinte/ });
+  await sw.click();                                   // notes closed: asks the PIN first
+  await page.fill('.pin-input', '1234');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.toast:has-text("touchez à nouveau")');
+  await sw.click();                                   // now the system prompt (the virtual authenticator answers)
+  await page.waitForSelector('.toast:has-text("ajouté")');
+  await page.reload();
+  await page.waitForSelector('#note-list .card');
+  await openHidden(page);
+  await page.click('.pin-device');
+  await openNote(page, 'Bienvenue');
+  await page.waitForSelector('#note-view:has-text("Notes garde vos idées")');
+});
+
 await check('shortcut: ?new=voice starts a voice note (or says why it cannot)', async page => {
   await page.goto(APP + '?new=voice');
   await page.waitForSelector('body.is-recording, .toast:has-text("icro"), .toast:has-text("Enregistrement")');
@@ -209,6 +292,22 @@ await check('looks: tablet, note beside the list', async page => {
   await openNote(page, 'Comment utiliser');
   await shot(page, 'tablet-note');
 }, { viewport: { width: 1047, height: 586 } });
+
+// Speech to text: the model comes from Hugging Face; ASR_MODEL=<dir with Xenova/whisper-tiny files> serves it locally, SKIP_ASR=1 skips
+const voice = fileURLToPath(new URL('./fixtures/voix.wav', import.meta.url));
+if (!process.env.SKIP_ASR) await check('voice text: a recording is transcribed on the device and its words are stored', async page => {
+  if (process.env.ASR_MODEL) await page.context().route('https://huggingface.co/Xenova/whisper-tiny/resolve/main/**', route =>
+    route.fulfill({ path: process.env.ASR_MODEL + '/' + new URL(route.request().url()).pathname.split('/resolve/main/')[1] }));
+  await page.click('#nav-settings');
+  await page.getByRole('switch', { name: /Texte des notes vocales/ }).click();
+  await page.click('#sheet-close');
+  await page.setInputFiles('#audio-input', voice);
+  const t0 = Date.now();
+  let text = '';
+  while (Date.now() - t0 < 240000 && !/pain|lait|bonjour|demain/i.test(text)) { await page.waitForTimeout(3000); text = await idbTexts(page); }
+  expect(/pain|lait|bonjour|demain/i.test(text), 'transcribed words, got: ' + JSON.stringify(text));
+  notes.push('transcript: ' + text.trim().slice(0, 140));
+});
 
 await check('photo text: a photo is read on the device and its words are stored', async page => {
   await page.click('#nav-settings');

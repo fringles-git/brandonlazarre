@@ -8,7 +8,7 @@ import { folderColor, get, menuNote, openNote, readableNotes, tabFolder, tabLabe
 import {
   clearChecked, closeLayer, createAndOpen, dailyNote, menuDeleteForever, menuHide, menuPin,
   menuRestore, menuTrash, moveSelection, moveTo, openLayer, openPicker, patchLayer, resetPin, restoreVersion,
-  setPref, submitPin, toggleNewFolder, uncheckList, editorRefs,
+  setPref, submitPin, toggleNewFolder, uncheckList, unlockWithDevice, editorRefs,
 } from '../actions';
 import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareLinkOne, shareOne, shareSelection, startStudy } from '../features';
 import { caretTop, day, dayOrTime, dayTime, finePointer, plural, reducedMotion, wide } from '../utils';
@@ -150,18 +150,19 @@ function Picker() {
 
 /* ---------- PIN, reminder, history, selection, outline, view ---------- */
 const PIN_TEXT = {
-  new: { title: (has: boolean) => (has ? 'Nouveau code PIN' : 'Créer un code PIN'), hint: '4 à 8 chiffres. Il protège le dossier Notes masquées (contenu caché, non chiffré).' },
+  new: { title: (has: boolean) => (has ? 'Nouveau code PIN' : 'Créer un code PIN'), hint: '4 à 8 chiffres. Il ouvre les notes masquées : leur contenu est chiffré sur cet appareil.' },
   auth: { title: () => 'Notes masquées', hint: 'Saisissez votre code PIN.' },
   change: { title: () => 'Changer le code PIN', hint: 'Saisissez d’abord le code actuel.' },
 };
 function Pin() {
-  const s = useStore(useShallow(s => ({ step: s.layer.pinStep || 'auth', armed: s.layer.resetArmed, has: !!s.pinHash, hidden: s.notes.filter(n => n.locked).length })));
-  const t = PIN_TEXT[s.step];
+  const s = useStore(useShallow(s => ({ step: s.layer.pinStep || 'auth', armed: s.layer.resetArmed, has: !!s.pinHash, hidden: s.notes.filter(n => n.locked).length, device: !!s.vault?.device })));
+  const t = PIN_TEXT[s.step], device = s.step === 'auth' && s.device;
   return (
     <>
       <p className="layer-title" id="pin-title">{t.title(s.has)}</p>
-      <Hint>{t.hint}</Hint>
-      <InlineForm key={s.step} button="Valider" onSubmit={async (v, input) => { if (!(await submitPin(v))) { input.value = ''; input.focus(); } }}
+      <Hint>{device ? 'Face ID ou empreinte, ou votre code PIN.' : t.hint}</Hint>
+      {device && <button className="btn primary pin-device" onClick={unlockWithDevice}><Icon name="biometric" />Face ID ou empreinte</button>}
+      <InlineForm key={s.step} autoFocus={!device} button="Valider" onSubmit={async (v, input) => { if (!(await submitPin(v))) { input.value = ''; input.focus(); } }}
         inputProps={{ className: 'pin-input', type: 'password', inputMode: 'numeric', maxLength: 8, autoComplete: 'off', 'aria-labelledby': 'pin-title' }} />
       {s.step !== 'new' && <>
         <div className="layer-foot">

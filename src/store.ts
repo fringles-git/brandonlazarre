@@ -1,6 +1,7 @@
 /** App state (Zustand) and the derived selectors every view shares. */
 import { create } from 'zustand';
 import type { Collection, Layer, Note, Prefs, SheetMode, StudyItem, Toast } from './types';
+import type { Vault } from './vault';
 import { DEFAULT_FOLDERS, DEFAULT_PREFS, KINDS, TAB_LABEL, type Kind } from './config';
 import { checkStats, dueCards, entities, tagsOf } from './markdown';
 import { memoArgs } from './utils';
@@ -16,6 +17,7 @@ export interface State {
   folderColors: Record<string, number>;
   prefs: Prefs;
   pinHash: string | null;
+  vault: Vault | null;   // keys of the encrypted hidden notes
   hiddenUnlocked: boolean;
   memOnly: boolean;
   storageInfo: { used: number; persisted: boolean } | null;
@@ -63,6 +65,7 @@ export const useStore = create<State>()(() => ({
   folderColors: {},
   prefs: { ...DEFAULT_PREFS },
   pinHash: null,
+  vault: null,
   hiddenUnlocked: false,
   memOnly: false,
   storageInfo: null,

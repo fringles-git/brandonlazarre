@@ -1,3 +1,5 @@
+import type { Sealed } from './vault';
+
 export type AttType = 'image' | 'audio' | 'pdf';
 
 export interface Attachment {
@@ -33,6 +35,8 @@ export interface Note {
   atts: Attachment[];
   versions: Version[];
   cards?: Record<string, CardProgress>;
+  sealed?: Sealed;        // a hidden note's content, encrypted (see vault.ts)
+  sealedOnly?: boolean;   // the content is only in `sealed`: not opened yet this session
 }
 
 export interface Collection { name: string; tab: string; query: string; kind: string | null }
@@ -47,6 +51,7 @@ export interface Prefs {
   tint: 'off' | 'on';
   formatBar?: boolean;
   ocr?: boolean;
+  asr?: boolean;   // voice notes transcribed on the device
   audioRate?: number;
   collections?: Collection[];
   recentSearches?: string[];
