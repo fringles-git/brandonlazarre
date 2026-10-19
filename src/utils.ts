@@ -1,4 +1,4 @@
-import { DAY } from './config';
+import { CONFIG, DAY } from './config';
 
 /* ---------- Text & numbers ---------- */
 export const plural = (n: number, one: string, many: string) => n + ' ' + (n > 1 ? many : one);
@@ -44,6 +44,7 @@ export const isTyping = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 export const finePointer = () => matchMedia('(pointer:fine)').matches;
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion:reduce)').matches;
+export const wide = () => matchMedia(CONFIG.wideMedia).matches;
 export const openUrl = (url: string) => () => window.open(url, '_blank', 'noopener');
 export const goUrl = (url: string) => () => { location.href = url; };
 

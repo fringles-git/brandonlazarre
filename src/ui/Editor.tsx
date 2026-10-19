@@ -8,7 +8,7 @@ import { urlOf } from '../media';
 import { openNote, readableNotes, useStore } from '../store';
 import {
   applyFormat, applyTemplate, backToReading, caretFormat, closeEditor, editAt, editField, editorRefs, extractSelection, FORMAT_TOOLS, onEditorKey,
-  open, openImport, openLayer, openLink, openNoteMenu, patchEditor, removeAtt, setTab, toggleFormatBar, toggleOpenCheck,
+  open, openImport, openLayer, openLink, openNoteMenu, openPicker, patchEditor, removeAtt, setTab, toggleFormatBar, toggleOpenCheck,
 } from '../actions';
 import { audioRate, cycleRate, editorAudios, openMap, pauseOthers, startStudy, toCalendar } from '../features';
 import { clock, dayOrTime, eventDate, finePointer, goUrl, isToday, openUrl, plural, rate } from '../utils';
@@ -20,7 +20,8 @@ function SaveStatus() {
   const s = useStore(useShallow(s => ({ status: s.editor.saveStatus, last: s.editor.lastSaved, mem: s.memOnly })));
   const label = s.mem ? 'Non conservé' : { saving: 'Enregistrement…', error: 'Non enregistré', modified: 'Modifié', saved: 'Enregistré' }[s.status];
   const when = s.status === 'saved' && !s.mem && s.last ? (isToday(s.last) ? ' à ' : ' le ') + dayOrTime(s.last) : '';
-  return <span className="save-status" data-status={s.status} aria-live="polite" title={s.mem ? label + ' : stockage indisponible' : label + when}><i aria-hidden="true" /><span>{label}</span><span className="visually-hidden">{when}</span></span>;
+  // Only a failure is announced: autosave states would speak at every pause in typing
+  return <span className="save-status" data-status={s.status} aria-live={s.status === 'error' ? 'assertive' : 'off'} title={s.mem ? label + ' : stockage indisponible' : label + when}><i aria-hidden="true" /><span>{label}</span><span className="visually-hidden">{when}</span></span>;
 }
 
 /** Outline, flashcards and link map, one tap away under the title. */
@@ -215,11 +216,16 @@ export function Editor() {
         <button className="icon-btn split-only" onClick={closeEditor} aria-label="Fermer la note"><Icon name="close" /></button>
       </div>
       <div className="editor-body">
+        {note && !trashed && (
+          <button className="folder-chip" onClick={openPicker} aria-haspopup="dialog" aria-label={'Dossier : ' + (note.folder || 'aucun') + '. Déplacer'}>
+            {note.folder ? <FolderTag folder={note.folder} /> : <><Icon name="folder" />Sans dossier</>}
+          </button>
+        )}
         <input className="editor-title" ref={title} placeholder="Titre" aria-label="Titre" value={note?.title || ''} readOnly={trashed}
           onChange={e => editField('title', e.target.value)} />
         <p className="editor-meta">
           <SaveStatus />
-          {note?.folder && <> · <FolderTag folder={note.folder} /></>}
+          {trashed && note?.folder && <> · <FolderTag folder={note.folder} /></>}
           {words > 0 && <> · {plural(words, 'mot', 'mots')}</>}
         </p>
         {note && <Tools note={note} />}
@@ -229,7 +235,7 @@ export function Editor() {
         <textarea className="editor-text" ref={body} placeholder="Écrire quelque chose…" aria-label="Note" hidden={s.reading} value={note?.body || ''} readOnly={trashed}
           onChange={e => editField('body', e.target.value)} onKeyDown={onEditorKey} onBlur={backToReading} />
         {s.reading && note && (
-          <div className="editor-text editor-view" id="note-view" tabIndex={0} role="textbox" aria-multiline="true" aria-readonly="true" aria-label="Note mise en forme : Entrée pour modifier"
+          <div className="editor-text editor-view" id="note-view" tabIndex={0} role="document" aria-label="Note mise en forme : Entrée pour modifier"
             onKeyDown={e => { if (e.key === 'Enter' && !e.defaultPrevented && e.target === e.currentTarget) { e.preventDefault(); editAt(null); } }}
             onClick={onViewClick}>
             <Formatted body={note.body} query={s.query} lines onToggle={toggleOpenCheck} />

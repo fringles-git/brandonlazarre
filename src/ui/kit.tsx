@@ -4,6 +4,7 @@ import type { Prefs } from '../types';
 import { parseInline, parseLine, TAG, headingLevel } from '../markdown';
 import { folderColor, useStore } from '../store';
 import { setPref } from '../actions';
+import { wide } from '../utils';
 import { Icon } from './icons';
 
 /** Keeps content mounted briefly after close, so it can animate out. */
@@ -30,7 +31,7 @@ function anchorTo(el: Element | null): CSSProperties | undefined {
   const r = el?.getBoundingClientRect();
   if (!r?.width) return;
   const vw = document.documentElement.clientWidth, edge = 12, gap = 8, below = r.top + r.height / 2 < innerHeight / 2;
-  if (!below && !matchMedia('(min-width:40em)').matches) return;
+  if (!below && !wide()) return;
   const w = Math.min(below ? 320 : 380, vw - 2 * edge), mid = r.left + r.width / 2;
   const left = Math.min(Math.max(edge, mid > vw / 2 ? r.right - w : below ? r.left : mid - w / 2), vw - w - edge);
   const origin = `${mid - left}px ${below ? '0' : '100%'}`;
@@ -39,20 +40,21 @@ function anchorTo(el: Element | null): CSSProperties | undefined {
     : { left, right: 'auto', width: w, bottom: innerHeight - r.top + gap, maxHeight: r.top - gap - edge, transformOrigin: origin };
 }
 
-/** A glass panel with its own scrim. Focus moves in on open and back on close. */
-export function Layer({ open, onClose, label, className, children, initialFocus, style, data, anchor = false }: {
-  open: boolean; onClose: () => void; label: string; className: string; children: ReactNode; anchor?: boolean;
+/** A glass panel with its own scrim. Focus moves in on open and back on close.
+    `anchor`: placed beside its control. `drawer`: on wide screens, a full-height panel from the thumb's edge (page stays sharp). */
+export function Layer({ open, onClose, label, className, children, initialFocus, style, data, anchor = false, drawer = false }: {
+  open: boolean; onClose: () => void; label: string; className: string; children: ReactNode; anchor?: boolean; drawer?: boolean;
   initialFocus?: () => HTMLElement | null | undefined; style?: CSSProperties; data?: Record<string, string | undefined>;
 }) {
   const { shown, closing } = useExit(open ? children : null), panel = useRef<HTMLDivElement>(null), back = useRef<Element | null>(null);
   const [placed, setPlaced] = useState<CSSProperties | undefined>();
-  const mode = data?.['data-mode'];
+  const mode = data?.['data-mode'], side = drawer && wide();
   useLayoutEffect(() => {
-    if (!open || !anchor) return setPlaced(undefined);
+    if (!open || !anchor || side) return setPlaced(undefined);
     // A layer opened from inside another keeps the first one's place
     if (trigger && (panel.current?.contains(trigger) || !trigger.isConnected)) return;
     setPlaced(anchorTo(trigger));
-  }, [open, anchor, mode]);
+  }, [open, anchor, side, mode]);
   useLayoutEffect(() => {
     if (!open) return;
     back.current = trigger || document.activeElement;
@@ -63,9 +65,10 @@ export function Layer({ open, onClose, label, className, children, initialFocus,
   if (shown === null) return null;
   return (
     <>
-      <div className="scrim" data-closing={closing || undefined} data-light={placed ? '' : undefined} onClick={onClose} />
+      <div className="scrim" data-closing={closing || undefined} data-light={placed || side ? '' : undefined} onClick={onClose} />
       <div ref={panel} className={className} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
-        data-open={open || undefined} data-closing={closing || undefined} data-anchored={placed ? '' : undefined} style={{ ...placed, ...style }} {...data}>
+        data-open={open || undefined} data-closing={closing || undefined} data-anchored={placed ? '' : undefined} data-drawer={side ? '' : undefined}
+        style={{ ...placed, ...style }} {...data}>
         {shown}
       </div>
     </>

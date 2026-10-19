@@ -11,7 +11,7 @@ import {
   setFolderColor, setPref, setTab, submitFolder, submitPin, toggleEditFolders, toggleNewFolder, uncheckList, editorRefs,
 } from '../actions';
 import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
-import { caretTop, day, dayOrTime, dayTime, finePointer, plural } from '../utils';
+import { caretTop, day, dayOrTime, dayTime, finePointer, plural, reducedMotion } from '../utils';
 import { InlineForm, Layer, Option, Row, shown } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
@@ -25,7 +25,7 @@ function TabRow({ tab, trailing, pressed, onClick }: { tab: string; trailing?: R
 }
 const NewFolder = () => <InlineForm onSubmit={submitFolder} button="Créer le dossier" inputProps={{ placeholder: 'Nom du dossier', 'aria-label': 'Nom du dossier' }} />;
 
-/* ---------- Create (long press on +) ---------- */
+/* ---------- Create (+) ---------- */
 /** + : three ways to capture. */
 function Create() {
   const tile = (id: string, icon: string, tone: string, label: string, hint: string, onClick: () => void) => (
@@ -349,7 +349,7 @@ function SelMore() {
 }
 function goToLine(line: number) {
   closeLayer();
-  if (get().editor.reading) return document.querySelector(`#note-view [data-line="${line}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  if (get().editor.reading) return document.querySelector(`#note-view [data-line="${line}"]`)?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
   const el = editorRefs.body;
   if (!el) return;
   const at = el.value.split('\n').slice(0, line).join('\n').length + +!!line;
@@ -396,7 +396,7 @@ export function LayerHost() {
   const mode = useStore((s: State) => s.layer.mode), def = mode ? LAYERS[mode] : null;
   return (
     <Layer open={!!mode} onClose={closeLayer} label={def?.label || ''} className={'layer glass' + (mode === 'library' ? ' lib-page' : '')}
-      anchor={mode !== 'library'} data={{ 'data-mode': mode || undefined }}>
+      anchor={mode !== 'library'} drawer={mode === 'outline' || mode === 'history'} data={{ 'data-mode': mode || undefined }}>
       {def && <def.Content />}
     </Layer>
   );

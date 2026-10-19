@@ -1,4 +1,4 @@
-/** The bottom of the screen, within thumb reach: two islands + the + button, the in-dock search, selection and recording bars. */
+/** The bottom of the screen, within thumb reach: navigation island + the + button, the in-dock search, selection and recording bars. */
 import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { SEARCH_KINDS, KIND_ICON } from '../config';
@@ -24,8 +24,11 @@ function Fab() {
 /** One navigation island next to +, which sits on the thumb's side. */
 function MainDock() {
   const s = useStore(useShallow(s => ({ home: s.prefs.tab === 'all' && !s.layer.mode && !s.sheet, library: s.layer.mode === 'library', settings: s.sheet === 'settings' })));
+  /** A destination says where you are (aria-current); a panel says whether it is open (aria-pressed). */
   const tab = (id: string, icon: string, label: string, onClick: () => void, on: boolean, popup = false) => (
-    <button className="tab-btn" id={id} onClick={onClick} aria-pressed={on} aria-haspopup={popup ? 'dialog' : undefined}><Icon name={icon} /><span>{label}</span></button>
+    <button className="tab-btn" id={id} onClick={onClick} {...(popup ? { 'aria-pressed': on, 'aria-haspopup': 'dialog' as const } : { 'aria-current': on ? 'page' as const : undefined })}>
+      <Icon name={icon} /><span>{label}</span>
+    </button>
   );
   return (
     <nav className="dock thumb-row main-dock" aria-label="Navigation">

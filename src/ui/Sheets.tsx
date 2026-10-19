@@ -310,7 +310,7 @@ export function SheetHost() {
   const mode = useStore(s => s.sheet), center = useStore(s => s.mapCenter);
   const def = mode ? SHEETS[mode] : null, title = def?.title(center) || '', Foot = def?.Foot;
   return (
-    <Layer open={!!mode} onClose={closeSheet} label={title} className="sheet glass" data={{ 'data-mode': mode || undefined }}
+    <Layer open={!!mode} onClose={closeSheet} label={title} className="sheet glass" drawer={mode === 'overview'} data={{ 'data-mode': mode || undefined }}
       initialFocus={() => document.querySelector<HTMLElement>('.sheet-foot .primary') || document.getElementById('sheet-close')}>
       {def && <>
         <div className="sheet-head"><h2 aria-hidden="true">{title}</h2><button className="icon-btn" id="sheet-close" onClick={closeSheet} aria-label="Fermer"><Icon name="close" /></button></div>

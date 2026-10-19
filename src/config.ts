@@ -20,6 +20,7 @@ export const CONFIG = {
   audioRates: [1, 1.25, 1.5, 2],
   wavePeaks: 28,
   splitMedia: '(min-width:64em)',
+  wideMedia: '(min-width:40em) and (min-height:30em)',   // same as the tablet rules in app.css
 } as const;
 
 export const DAY = 864e5;
@@ -105,6 +106,32 @@ type ChangeKind = (typeof CHANGE_KINDS)[number]['kind'];
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-19',
+    changes: {
+      new: [
+        'Tablette, liste et note côte à côte : chaque volet garde ses îlots dans son coin, la navigation et + en bas à gauche, les outils de la note en bas à droite',
+        'Le dossier de la note s’affiche au-dessus du titre : touchez-le pour la déplacer',
+        'Plan, Historique et Vue d’ensemble s’ouvrent en panneau sur le côté du pouce, la note reste visible',
+        'Réviser et Carte des liens s’ouvrent en plein écran',
+      ],
+      better: [
+        'Le texte s’efface en douceur sous les outils au lieu de passer derrière',
+        'Les menus laissent visible le bouton qui les a ouverts',
+        'Les colonnes suivent la largeur du volet : deux à côté d’une note, trois en pleine largeur',
+        'Téléphone à l’horizontale : mise en forme et outils sur une seule ligne',
+        'Créer : icône, nom et détail alignés dans les trois choix, Note en jaune avec un crayon sombre',
+        'Textes secondaires et coches ambrées plus lisibles en thème clair',
+        'Recherche, messages et enregistrement se rangent du côté du pouce sur tablette',
+      ],
+      fix: [
+        'Réduire la transparence et réduire les animations sont respectés partout',
+        'Rien ne passe sous l’encoche d’un téléphone à l’horizontale',
+        'Les cases à cocher des cartes sont plus faciles à toucher',
+        'Supprimer, dans la sélection, retrouve un rouge lisible',
+      ],
+    },
+  },
   {
     date: '2026-10-18',
     changes: {

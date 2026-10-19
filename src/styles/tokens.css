@@ -10,8 +10,8 @@
 
   /* Ink */
   --color-text: light-dark(#16171b, #f2f3f7);
-  --color-text-muted: light-dark(#5f6370, #9a9eab);
-  --color-text-faint: light-dark(#8b8f9b, #6c707c);
+  --color-text-muted: light-dark(#4f5361, #9a9eab);
+  --color-text-faint: light-dark(#6b6f7c, #82868f);   /* ≥4.4:1 as text on every surface */
   --color-line: light-dark(#16171b14, #ffffff14);
 
   /* Surfaces */
@@ -36,7 +36,7 @@
 
   /* Accent: Notes yellow; select: system blue */
   --color-accent: #f4c542;
-  --color-accent-deep: #e0ac1c;
+  --color-accent-deep: light-dark(#8c6600, #e0ac1c);   /* amber as ink (ticks, strokes, labels): ≥4.5:1; fills stay --color-accent */
   --color-on-accent: #1a1608;
   --color-accent-glow: 0 8px 24px light-dark(#f4c54270, #f4c54240);
   --color-select: light-dark(#0062cc, #0a84ff);
@@ -76,6 +76,10 @@
   --space-8: 32px;
   --edge: 12px;
   --gutter: 16px;
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --edge-l: calc(var(--edge) + var(--safe-l));
+  --edge-r: calc(var(--edge) + var(--safe-r));
 
   /* Size */
   --tap: 44px;
@@ -88,6 +92,10 @@
   --kb: 0px;
   --dock-bottom: calc(var(--safe-bottom) + var(--space-2) + var(--kb));
   --dock-space: calc(var(--fab) + var(--safe-bottom) + var(--space-8));
+  --dock-max: calc(var(--layout-max) - 2 * var(--gutter) + 2 * var(--edge));
+  --dock-inset-l: max(var(--edge-l), (100vw - var(--dock-max)) / 2);   /* where the dock's sides fall: things above it line up */
+  --dock-inset-r: max(var(--edge-r), (100vw - var(--dock-max)) / 2);
+  --split-list: max(36vw, 22rem);   /* list pane when the note opens beside it */
 
   /* Shape: every radius = its box height ÷ 3; containers stay concentric (inner radius + padding) */
   --radius-ratio: 3;
@@ -127,6 +135,6 @@ body[data-font='serif'] { --font-notes: var(--font-serif); }
 @media (prefers-reduced-motion: reduce) {
   :root { --fast: 1ms; --base: 1ms; --slow: 1ms; }
 }
-@media (prefers-reduced-transparency: reduce) {
-  :root { --glass: var(--glass-strong); --glass-blur: none; }
+@media (max-height: 30em) {   /* phone landscape, short windows */
+  :root { --text-title: 26px; }
 }
