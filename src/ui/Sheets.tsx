@@ -138,7 +138,7 @@ function LinkMap() {
                 aria-label={(v.ghost ? 'Créer la note ' : 'Ouvrir la note ') + v.label} transform={`translate(${p.x - w / 2},${p.y - 18})`}
                 onClick={() => go(v)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(v); } }}>
                 <rect width={w} height={36} rx={12} />
-                {color && <circle cx={14} cy={18} r={4} />}
+                {color && <rect className="map-dot" x={10} y={14} width={8} height={8} rx={8 / 3} />}
                 <text x={color ? 24 : 14} y={18} dominantBaseline="central">{(v.ghost ? '+ ' : '') + (v.label.length > 24 ? v.label.slice(0, 23) + '…' : v.label)}</text>
               </g>
             );

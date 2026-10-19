@@ -81,13 +81,14 @@ mark { background: var(--color-highlight); color: inherit; border-radius: 3px; p
 .btn.primary { background: var(--color-accent); color: var(--color-on-accent); box-shadow: var(--color-accent-glow); }
 
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px;
+.chip {   /* drawn at 38px, touched at 44px */
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
   --h: 38px;
   min-height: var(--h); padding: 0 14px;
   border-radius: calc(var(--h) / var(--radius-ratio));
   background: var(--color-fill); font-size: var(--text-sm); font-weight: 550; white-space: nowrap;
 }
+.chip::after { content: ''; position: absolute; inset: -3px 0; }
 .chip svg { width: 17px; height: 17px; }
 .chip span { overflow: hidden; text-overflow: ellipsis; max-width: 24ch; }
 .chip[aria-pressed='true'] { background: var(--color-select-tint); color: var(--color-select); box-shadow: inset 0 0 0 1.5px var(--color-select); }   /* selected = tint + ring, like a selected card */
@@ -546,7 +547,7 @@ body[data-hand='left'] .tiles { flex-direction: row-reverse; }   /* Note stays n
 .map-node rect { fill: var(--color-card-solid); stroke: var(--color-line); }
 .map-node.is-center rect { fill: var(--color-accent); stroke: var(--color-accent-deep); }
 .map-node.is-ghost rect { fill: none; stroke: var(--color-text-faint); stroke-dasharray: 4 3; }
-.map-node circle { fill: var(--folder-dot); }
+.map-node rect.map-dot { fill: var(--folder-dot); stroke: none; }   /* folder dot: a square ÷3, never a circle */
 .map-node text { fill: var(--color-text); font: 600 13px var(--font); }
 .map-node:focus-visible rect { stroke: var(--color-select); stroke-width: 2.5; }
 

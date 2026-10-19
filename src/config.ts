@@ -113,7 +113,8 @@ const RELEASES: Omit<Release, 'version'>[] = [
         'Touche S : sélectionner plusieurs notes au clavier (Espace coche, Échap termine)',
       ],
       better: [
-        'Les pastilles sous le titre se touchent plus facilement, sans grossir',
+        'Pastilles et puces se touchent plus facilement (44 px), sans grossir à l’écran',
+        'Carte des liens : les points de dossier sont carrés, comme partout ailleurs',
       ],
     },
   },
