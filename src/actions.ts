@@ -1,6 +1,6 @@
 /** Core actions: persistence, toasts, notes, editor, formatting, layers, selection, folders, PIN, search and tabs. */
 import { flushSync } from 'react-dom';
-import type { Attachment, LayerMode, Note, Prefs, SheetMode } from './types';
+import type { Attachment, ChangeKind, LayerMode, Note, Prefs, SheetMode } from './types';
 import { CONFIG, MSG, TEMPLATES, type Kind } from './config';
 import { canHash, checkPin, deleteNote, hashPin, PIN_SCHEME, putNote, putPref, storageInfo } from './db';
 import {
@@ -32,9 +32,9 @@ export function setPref<K extends keyof Prefs>(key: K, value: Prefs[K]) {
 
 /* ---------- Toast ---------- */
 let toastTimer = 0;
-export function toast(message: string, action: (() => void) | null = null, label = 'Annuler') {
+export function toast(message: string, action: (() => void) | null = null, label = 'Annuler', kind?: ChangeKind) {
   clearTimeout(toastTimer);
-  set({ toast: { id: Date.now(), message, label, action } });
+  set({ toast: { id: Date.now(), message, label, action, kind } });
   toastTimer = window.setTimeout(hideToast, CONFIG.toastMs);
 }
 export const hideToast = () => set({ toast: null });
@@ -414,7 +414,15 @@ export function openSheet(mode: SheetMode) {
 }
 export const closeSheet = () => set({ sheet: null });
 export const toggleSettings = () => (get().sheet === 'settings' ? closeSheet() : openSheet('settings'));
-export const toggleLibrary = () => { closeSheet(); toggleLayer('library'); };
+/** The Library is a page, like the list: the dock stays, Notes brings you back. */
+export function goLibrary() {
+  closeLayer();
+  closeSheet();
+  if (get().searchOpen) closeSearch();
+  if (get().selecting) endSelecting();
+  set({ page: 'library' });
+  scrollTo(0, 0);
+}
 export async function refreshStorage() { set({ storageInfo: await storageInfo() }); }
 
 /** Note menu actions act on the note the menu was opened for. */
@@ -636,6 +644,7 @@ export function setTab(tab: string) {
   if (tab !== 'locked') set({ hiddenUnlocked: false });
   if (s.selecting) endSelecting();
   setPref('tab', tab);
+  set({ page: 'notes' });
   if (get().layer.mode) closeLayer();
 }
 /** Falls back to "all" when the current tab no longer exists. */
@@ -650,7 +659,7 @@ export function goHome() {
   closeSheet();
   const s = get();
   if (s.searchOpen) closeSearch();
-  else if (s.prefs.tab !== 'all') setTab('all');
+  else if (s.prefs.tab !== 'all' || s.page !== 'notes') setTab('all');
   else scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' });
 }
 
@@ -661,7 +670,7 @@ export function openSearch() {
   if (s.selecting) endSelecting();
   closeLayer();
   closeSheet();
-  set({ searchOpen: true });
+  set({ searchOpen: true, page: 'notes' });
 }
 export function closeSearch() {
   rememberSearch(get().query);

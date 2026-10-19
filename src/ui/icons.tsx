@@ -14,6 +14,7 @@ export const icons: Record<string, string> = {
   checklist: '<path d="M4 6l2 2 3-3M12 7h8M4 13l2 2 3-3M12 14h8M12 20h8M5 20h2"/>',
   camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  minus: '<path d="M6.5 12h11"/>',
   pin: '<path d="M9 3h6M10 3v6l-3 4h10l-3-4V3M12 13v8"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',

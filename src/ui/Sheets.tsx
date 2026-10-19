@@ -2,18 +2,18 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/react/shallow';
-import type { Note, SheetMode } from '../types';
+import type { ChangeKind, Note, SheetMode } from '../types';
 import { CHANGE_KINDS, CREDITS, CURRENT, findRelease, RELEASE_LIST, releasesSince, type Release } from '../config';
 import { backlinks, dueCards, entities, flashcards, hostOf, masteredCount, nextDue, titleIndex, withScheme } from '../markdown';
 import { urlOf } from '../media';
 import { folderColor, noteById, readableNotes, tabFolder, tabLabel, tabNotes, useStore } from '../store';
-import { closeSheet, open, openLink, runToastAction } from '../actions';
+import { closeSheet, open, openLink, openSheet, runToastAction } from '../actions';
 import {
-  answer, deleteCard, exportBackup, exportMarkdown, exportSlides, install, lastBackupLabel, openGuide, persistStorage, printTab, replayWelcome,
+  answer, deleteCard, exportBackup, exportMarkdown, exportSlides, install, lastBackupLabel, openGuide, openNews, printTab,
   retryMissed, reveal, startStudy, startTour, studyNotes, toggleOcr, openMap,
 } from '../features';
 import { bytes, clock, day, dayTime, fmt, plural, time } from '../utils';
-import { Chip, Formatted, HANDS, Layer, Row, Segmented, Switch, THEMES } from './kit';
+import { Chip, Formatted, HANDS, Layer, Row, Segmented, StateMark, Switch, THEMES } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
 
@@ -198,9 +198,10 @@ function Overview() {
 }
 
 /* ---------- Settings ---------- */
+/** Only what works today. Help and version live together; storage protection happens by itself. */
 function Settings() {
   const s = useStore(useShallow(s => ({
-    lastBackup: s.prefs.lastBackup, info: s.storageInfo, canInstall: !!s.install.prompt, ocr: !!s.prefs.ocr,
+    lastBackup: s.prefs.lastBackup, canInstall: !!s.install.prompt, ocr: !!s.prefs.ocr,
     read: s.notes.reduce((t, n) => t + n.atts.filter(a => a.type === 'image' && a.text != null).length, 0),
   })));
   return (
@@ -209,7 +210,7 @@ function Settings() {
         <Segmented pref="theme" label="Thème" options={THEMES} />
         <Segmented pref="hand" label="Main dominante" options={HANDS} />
         <Segmented pref="tint" label="Couleur des dossiers" options={[['off', 'Pastille'], ['on', 'Teinter']]} />
-        <Segmented pref="font" label="Texte des notes" options={[['sans', 'Moderne'], ['serif', <span className="serif-sample">Classique</span>]]} />
+        <Segmented pref="font" label="Police des notes" options={[['sans', 'Figtree'], ['serif', <span className="serif-sample">Literata</span>]]} />
       </div>
       <div>
         {s.canInstall && <><h4>Application</h4><button className="option" onClick={install}>Installer l’app sur cet appareil</button></>}
@@ -218,10 +219,11 @@ function Settings() {
         <h4>Sauvegarde</h4>
         <button className="option" onClick={exportBackup}><span>Exporter les notes</span><small>{lastBackupLabel(s.lastBackup)}</small></button>
         <button className="option" onClick={() => pickFile('backup')}>Importer une sauvegarde</button>
-        {s.info && <button className="option" onClick={persistStorage} disabled={s.info.persisted}><span>{s.info.persisted ? 'Stockage protégé' : 'Protéger le stockage'}</span><small>{bytes(s.info.used)}</small></button>}
-        <h4>Notes</h4>
+        <h4>Aide</h4>
         <button className="option" onClick={startTour}>Visite guidée</button>
-        <button className="option" onClick={() => useStore.setState({ sheet: 'about' })}><span>À propos</span><small>{CURRENT.version}</small></button>
+        <button className="option" onClick={openGuide}>Guide d’utilisation</button>
+        <button className="option" onClick={openNews}><span>Quoi de neuf</span><small>{CURRENT.version}</small></button>
+        <button className="option" onClick={() => openSheet('about')}>À propos</button>
       </div>
     </div>
   );
@@ -237,11 +239,11 @@ function releaseDate(date: string) {
   const ago = Math.round((+today - +then) / 864e5);
   return ago === 0 ? 'Aujourd’hui' : ago === 1 ? 'Hier' : ago > 1 && ago < 7 ? `Il y a ${ago} jours` : fmt('long', { day: 'numeric', month: 'long', year: 'numeric' }).format(then);
 }
-function ChangeGroup({ kind, title, icon, items }: { kind: string; title: string; icon: string; items: string[] }) {
+function ChangeGroup({ kind, title, items }: { kind: ChangeKind; title: string; items: string[] }) {
   const [all, setAll] = useState(items.length <= 5);
   return (
     <section className="change-group" data-kind={kind}>
-      <h4><span className="change-icon"><Icon name={icon} /></span>{title}<span className="change-count">{items.length}</span></h4>
+      <h4><StateMark kind={kind} />{title}<span className="change-count">{items.length}</span></h4>
       <ul>{(all ? items : items.slice(0, 5)).map(i => <li key={i}>{i}</li>)}</ul>
       {!all && <button className="text-btn" onClick={() => setAll(true)}>Tout afficher ({items.length})</button>}
     </section>
@@ -256,7 +258,7 @@ function Timeline({ releases, open: openCount = 1 }: { releases: Release[]; open
             <span className="release-title"><span className="release-node" aria-hidden="true" />{r.version}{r === CURRENT && <span className="badge">Installée</span>}</span>
             <span className="release-meta">{[releaseDate(r.date), ...countChanges([r]).map(c => plural(c.count, c.one, c.many)), r.legacy && r.legacy !== r.version && 'ex-' + r.legacy].filter(Boolean).join(' · ')}</span>
           </summary>
-          {CHANGE_KINDS.map(k => r.changes[k.kind]?.length ? <ChangeGroup key={k.kind} kind={k.kind} title={k.title} icon={k.icon} items={r.changes[k.kind]!} /> : null)}
+          {CHANGE_KINDS.map(k => r.changes[k.kind]?.length ? <ChangeGroup key={k.kind} kind={k.kind} title={k.title} items={r.changes[k.kind]!} /> : null)}
         </details>
       </li>
     ))}</ol>
@@ -271,13 +273,8 @@ function About() {
         <img className="about-icon" src="icons/icon-192.png" alt="" />
         <div><p className="about-name">Notes</p><p className="about-version">Version {CURRENT.version}{when && <> · {day(when)} {time(when)}</>}</p></div>
       </div>
-      <div className="chips">
-        <Chip icon="tour" label="Visite guidée" onClick={startTour} />
-        <Chip icon="all" label="Guide d’utilisation" onClick={openGuide} />
-        <Chip icon="sparkle" label="Revoir l’accueil" onClick={replayWelcome} />
-      </div>
       <Section title="Créé par"><p className="about-text"><b>Fringles</b> · Design et développement</p></Section>
-      <Section title="Vos données"><p className="about-text">Tout reste sur cet appareil, sans compte : rien n’est envoyé sur le cloud. {plural(s.count, 'note', 'notes')}{s.info ? ' · ' + bytes(s.info.used) : ''}.</p></Section>
+      <Section title="Vos données"><p className="about-text">Tout reste sur cet appareil, sans compte : rien n’est envoyé sur le cloud. {plural(s.count, 'note', 'notes')}{s.info ? ' · ' + bytes(s.info.used) + (s.info.persisted ? ' · stockage protégé' : '') : ''}.</p></Section>
       <Section title="Journal des modifications"><Timeline releases={RELEASE_LIST} /></Section>
       <Section title="Crédits">{CREDITS.map(([a, b]) => <p key={a} className="about-text"><b>{a}</b> · {b}</p>)}</Section>
     </>
@@ -306,11 +303,14 @@ const SHEETS: Record<SheetMode, { title: (center: number | null) => string; Cont
   news: { title: () => 'Quoi de neuf', Content: News, Foot: () => <Btn primary label="Continuer" onClick={closeSheet} /> },
 };
 
+/** Recurring tools open on the thumb's side of a wide screen; long focused tasks take the whole screen (CSS). */
+const SIDE_SHEETS: SheetMode[] = ['overview', 'settings', 'about', 'news'];
+
 export function SheetHost() {
   const mode = useStore(s => s.sheet), center = useStore(s => s.mapCenter);
   const def = mode ? SHEETS[mode] : null, title = def?.title(center) || '', Foot = def?.Foot;
   return (
-    <Layer open={!!mode} onClose={closeSheet} label={title} className="sheet glass" drawer={mode === 'overview'} data={{ 'data-mode': mode || undefined }}
+    <Layer open={!!mode} onClose={closeSheet} label={title} className="sheet glass" drawer={!!mode && SIDE_SHEETS.includes(mode)} data={{ 'data-mode': mode || undefined }}
       initialFocus={() => document.querySelector<HTMLElement>('.sheet-foot .primary') || document.getElementById('sheet-close')}>
       {def && <>
         <div className="sheet-head"><h2 aria-hidden="true">{title}</h2><button className="icon-btn" id="sheet-close" onClick={closeSheet} aria-label="Fermer"><Icon name="close" /></button></div>
@@ -325,6 +325,7 @@ export function Toast() {
   const t = useStore(s => s.toast);
   return t ? (
     <div className="toast glass" key={t.id} role="status">
+      {t.kind && <StateMark kind={t.kind} />}
       <span>{t.message}</span>
       {t.action && <button onClick={runToastAction}>{t.label}</button>}
     </div>

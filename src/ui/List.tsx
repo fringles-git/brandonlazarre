@@ -6,7 +6,7 @@ import { CONFIG } from '../config';
 import { checkStats, dueCards, entities, parseCheck, plainLine, plainText, snippet } from '../markdown';
 import { firstAtt, urlOf } from '../media';
 import { countIn, folderColor, inTrash, readableNotes, tabFolder, tabLabel, useStore, visibleNotes } from '../store';
-import { changePin, clearByFilter, setPref, emptyTrash, goHome, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
+import { changePin, clearByFilter, setPref, emptyTrash, goHome, goLibrary, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
 import { backupDue, currentHint, dismissHint, exportBackup, playCard, startStudy } from '../features';
 import { consumeClick } from '../gestures';
 import { bytes, clock, day, daysAgo, dayTime, eventDate, finePointer, fullDay, plural, relativeDay } from '../utils';
@@ -22,7 +22,7 @@ export function Header() {
     <header className="app-header" id="app-header">
       <div className="pull-hint" aria-hidden="true"><Icon name="search" /><span>Rechercher</span></div>
       <div className="header-bar">
-        {s.tab !== 'all' && <button className="back-chip glass" onClick={goHome} aria-label="Toutes les notes"><Icon name="back" /><span>Notes</span></button>}
+        {s.tab !== 'all' && <button className="back-chip glass" onClick={goLibrary}><Icon name="back" /><span>Bibliothèque</span></button>}
         <h1 id="page-title" data-color={folder ? folderColor(folder, s.colors) : undefined} onClick={goHome}>
           {title}{count > 0 && <span className="title-count" aria-hidden="true">{count}</span>}
         </h1>
@@ -49,13 +49,13 @@ export function InfoBar() {
   })));
   const by = s.by === 'me' ? 'Créé par moi' : 'Créé avec l’IA';
   const pills = [
-    s.by !== 'all' && <button key="by" className="pill" onClick={clearByFilter} aria-label={'Retirer le filtre ' + by}>Filtre : {by} ✕</button>,
+    s.by !== 'all' && <button key="by" className="pill" onClick={clearByFilter} aria-label={'Retirer le filtre ' + by}>Filtre : {by}<Icon name="close" /></button>,
     s.trashCount > 0 && <button key="trash" className="pill danger" onClick={emptyTrash}>Vider la corbeille ({s.trashCount})</button>,
     /^[ftc]:/.test(s.tab) && !s.selecting && !s.query.trim() && <button key="ov" className="pill" onClick={() => openSheet('overview')}>Vue d’ensemble</button>,
     s.backup && <button key="backup" className="pill" onClick={exportBackup}>
       {s.lastBackup ? `Dernière sauvegarde il y a ${daysAgo(s.lastBackup)} jours. Exporter` : 'Aucune sauvegarde. Exporter les notes'}
     </button>,
-    s.hint && <button key="hint" className="pill" onClick={() => dismissHint(s.hint!.id)} aria-label={'Masquer l’astuce : ' + s.hint.text}>{s.hint.text} ✕</button>,
+    s.hint && <button key="hint" className="pill" onClick={() => dismissHint(s.hint!.id)} aria-label={'Masquer l’astuce : ' + s.hint.text}>{s.hint.text}<Icon name="close" /></button>,
     s.tab === 'locked' && s.unlocked && <button key="pin" className="pill" onClick={changePin}>Changer le code PIN</button>,
     s.ios && <button key="ios" className="pill" onClick={() => openLayer('ios-install')}>Protéger mes notes sur iPhone</button>,
   ].filter(Boolean);
@@ -108,7 +108,7 @@ export function Recap() {
   const h = new Date().getHours();
   return (
     <section className="recap" aria-label="Récapitulatif">
-      <p className="recap-hello"><b>{h >= 5 && h < 18 ? 'Bonjour' : 'Bonsoir'}</b> · {fullDay(Date.now())}</p>
+      <p className="page-sub"><b>{h >= 5 && h < 18 ? 'Bonjour' : 'Bonsoir'}</b> · {fullDay(Date.now())}</p>
       {list.length > 0 && (
         <div className="recap-row">
           {list.map((w, i) => (

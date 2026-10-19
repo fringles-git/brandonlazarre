@@ -1,11 +1,11 @@
 /** The bottom of the screen, within thumb reach: navigation island + the + button, the in-dock search, selection and recording bars. */
 import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { SEARCH_KINDS, KIND_ICON } from '../config';
+import { SEARCH_KINDS, KIND_ICON, KIND_TONE } from '../config';
 import { filterNotes, inTrash, KIND_TEST, tabLabel, useStore, visibleNotes } from '../store';
 import {
   allSelected, clearRecents, closeSearch, deleteSelection, goHome, endSelecting, hideSelection, openSearch, pinSelection,
-  restoreSelection, saveCollection, selectAll, setQuery, toggleKind, toggleLayer, toggleLibrary, toggleSettings,
+  restoreSelection, saveCollection, selectAll, setQuery, toggleKind, toggleLayer, goLibrary, toggleSettings,
 } from '../actions';
 import { cancelRecording, stopRecording } from '../features';
 import { clock, plural } from '../utils';
@@ -23,7 +23,11 @@ function Fab() {
 
 /** One navigation island next to +, which sits on the thumb's side. */
 function MainDock() {
-  const s = useStore(useShallow(s => ({ home: s.prefs.tab === 'all' && !s.layer.mode && !s.sheet, library: s.layer.mode === 'library', settings: s.sheet === 'settings' })));
+  // Notes = every note; Bibliothèque = the library and any view picked in it (folder, tag, collection…)
+  const s = useStore(useShallow(s => {
+    const all = s.page === 'notes' && s.prefs.tab === 'all';
+    return { home: all && !s.sheet, library: !all && !s.sheet, settings: s.sheet === 'settings' };
+  }));
   /** A destination says where you are (aria-current); a panel says whether it is open (aria-pressed). */
   const tab = (id: string, icon: string, label: string, onClick: () => void, on: boolean, popup = false) => (
     <button className="tab-btn" id={id} onClick={onClick} {...(popup ? { 'aria-pressed': on, 'aria-haspopup': 'dialog' as const } : { 'aria-current': on ? 'page' as const : undefined })}>
@@ -34,7 +38,7 @@ function MainDock() {
     <nav className="dock thumb-row main-dock" aria-label="Navigation">
       <div className="island glass" id="nav-island">
         {tab('nav-notes', 'all', 'Notes', goHome, s.home)}
-        {tab('nav-library', 'library', 'Bibliothèque', toggleLibrary, s.library, true)}
+        {tab('nav-library', 'library', 'Bibliothèque', goLibrary, s.library)}
         {tab('search-button', 'search', 'Recherche', openSearch, false)}
         {tab('nav-settings', 'settings', 'Réglages', toggleSettings, s.settings, true)}
       </div>
@@ -59,8 +63,8 @@ function SearchDock() {
   return (
     <div className="dock search-dock" role="search">
       <div className="search-chips" role="group" aria-label="Filtrer les résultats">
-        <button className="chip glass" aria-pressed={!s.kind} onClick={() => s.kind && toggleKind(s.kind)}>Tout</button>
-        {kinds.map(k => <button key={k} className="chip glass" aria-pressed={s.kind === k} onClick={() => toggleKind(k)}><Icon name={KIND_ICON[k]} />{tabLabel(k)}</button>)}
+        {/* No "Tout" chip: no filter is the default; a filter chip toggles itself off */}
+        {kinds.map(k => <button key={k} className="chip glass" data-tone={KIND_TONE[k]} aria-pressed={s.kind === k} onClick={() => toggleKind(k)}><Icon name={KIND_ICON[k]} />{tabLabel(k)}</button>)}
         {(s.query.trim() || s.kind) && <button className="chip glass is-quiet" onClick={saveCollection} aria-label="Enregistrer cette recherche comme collection"><Icon name="filter" />Enregistrer</button>}
         {recents.length > 0 && <span className="chip-group" role="group" aria-label="Recherches récentes">
           {recents.map(r => <button key={r} className="chip glass is-quiet" onClick={() => { setQuery(r); input.current?.focus(); }} aria-label={'Rechercher ' + r}><Icon name="history" />{r}</button>)}

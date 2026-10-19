@@ -1,6 +1,6 @@
 /** Features around the notes: capture & import, attachments analysis, audio, reminders, sharing, study, exports, onboarding, boot. */
 import type { Note, Prefs } from './types';
-import { CONFIG, CURRENT, DAY, DEFAULT_FOLDERS, GUIDE_TITLE, HINTS, MSG, releasesSince, STARTER_NOTES, TOUR } from './config';
+import { CONFIG, CURRENT, DAY, DEFAULT_FOLDERS, GUIDE_TITLE, HINTS, MSG, RELEASE_LIST, releasesSince, STARTER_NOTES, TOUR } from './config';
 import { attFromBackup, backupBlob, getAll, normalizeNote, openDb } from './db';
 import { dueCards, flashcards, grade, hostOf, removeCardLine, URL_RE } from './markdown';
 import { audioPeaks, epubToNotes, exportPptx, fileToAtt, htmlFileToNote, isHeavy, markdownToNote, ocrText, pdfText, releaseUrls, titleFromFile } from './media';
@@ -346,6 +346,7 @@ export function exportBackup() {
       const s = get();
       download(await backupBlob(s.notes, s.folders, s.folderColors), 'notes-' + new Date().toISOString().slice(0, 10) + '.json');
       setPref('lastBackup', Date.now());
+      persistStorage();
       toast(plural(s.notes.length, 'note exportée', 'notes exportées') + '. Le fichier contient aussi les notes masquées, en clair.');
     } catch { toast('Échec de l’export.'); }
   };
@@ -353,12 +354,9 @@ export function exportBackup() {
 }
 export const backupDue = (s = get()) =>
   s.notes.filter(n => !n.deleted).length >= 3 && Date.now() - (s.prefs.lastBackup || s.prefs.firstRun || Date.now()) > CONFIG.backupNagDays * DAY;
+/** Asks the browser to keep the notes (silent where granted on engagement). Called when the user shows they care: install, export. */
 export function persistStorage() {
-  if (!navigator.storage?.persist) return toast('Non pris en charge par ce navigateur. Exportez régulièrement une sauvegarde.');
-  navigator.storage.persist().then(ok => {
-    toast(ok ? 'Stockage protégé : le navigateur ne supprimera pas vos notes automatiquement.' : 'Le navigateur a refusé. Exportez régulièrement une sauvegarde.');
-    refreshStorage();
-  });
+  navigator.storage?.persist?.().then(refreshStorage).catch(() => {});
 }
 export function install() {
   const p = get().install.prompt;
@@ -373,7 +371,8 @@ export function openGuide() {
   const n = get().notes.find(x => !x.deleted && x.title.trim().toLowerCase() === GUIDE_TITLE.toLowerCase());
   if (n) open(n.id); else createAndOpen({ ...STARTER_NOTES[0], folder: '' });
 }
-export const replayWelcome = () => { closeSheet(); set({ welcome: true }); };
+/** What's new in this version, any time (Réglages → Aide → Quoi de neuf). */
+export const openNews = () => set({ newsSince: RELEASE_LIST[1]?.version || CURRENT.version, sheet: 'news' });
 export function endWelcome(tour: boolean) {
   set({ welcome: false });
   setPref('onboarded', Date.now());

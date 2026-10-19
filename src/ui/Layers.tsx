@@ -1,18 +1,18 @@
-/** Bottom sheets that pop over the list or the editor, from the thumb side: create, note menu, library, pickers, PIN… */
+/** Menus and panels that open over the list or the note, beside the control that called them: create, note menu, pickers, PIN… */
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { LayerMode, Note } from '../types';
-import { FOLDER_COLORS, KIND_ICON, KIND_TONE, KINDS } from '../config';
-import { checkStats, entities, noteTools, outline, stripCheck, tagsOf } from '../markdown';
-import { countIn, folderColor, get, menuNote, openNote, readableNotes, tabFolder, tabLabel, useStore, type State } from '../store';
+import { KIND_ICON, KIND_TONE } from '../config';
+import { checkStats, entities, noteTools, outline, stripCheck } from '../markdown';
+import { folderColor, get, menuNote, openNote, readableNotes, tabFolder, tabLabel, useStore, type State } from '../store';
 import {
-  clearChecked, closeLayer, createAndOpen, dailyNote, deleteCollection, deleteFolder, menuDeleteForever, menuHide, menuPin,
-  menuRestore, menuTrash, moveSelection, moveTo, openLayer, openPicker, patchLayer, renameCollection, renameFolder, resetPin, restoreVersion,
-  setFolderColor, setPref, setTab, submitFolder, submitPin, toggleEditFolders, toggleNewFolder, uncheckList, editorRefs,
+  clearChecked, closeLayer, createAndOpen, dailyNote, menuDeleteForever, menuHide, menuPin,
+  menuRestore, menuTrash, moveSelection, moveTo, openLayer, openPicker, patchLayer, resetPin, restoreVersion,
+  setPref, submitPin, toggleNewFolder, uncheckList, editorRefs,
 } from '../actions';
 import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
 import { caretTop, day, dayOrTime, dayTime, finePointer, plural, reducedMotion } from '../utils';
-import { InlineForm, Layer, Option, Row, shown } from './kit';
+import { InlineForm, Layer, NewFolder, Option, Row } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
 
@@ -23,23 +23,22 @@ function TabRow({ tab, trailing, pressed, onClick }: { tab: string; trailing?: R
   const color = useStore(s => (tabFolder(tab) ? folderColor(tabFolder(tab), s.folderColors) : undefined));
   return <Row icon={KIND_ICON[tab] || { f: 'folder', t: 'hash', c: 'filter' }[tab[0]] || 'folder'} label={tabLabel(tab)} trailing={trailing} pressed={pressed} color={color} tone={KIND_TONE[tab]} onClick={onClick} />;
 }
-const NewFolder = () => <InlineForm onSubmit={submitFolder} button="Créer le dossier" inputProps={{ placeholder: 'Nom du dossier', 'aria-label': 'Nom du dossier' }} />;
 
 /* ---------- Create (+) ---------- */
-/** + : three ways to capture. */
+/** + : three ways to capture, the most frequent (Note) nearest the thumb. Icons speak for themselves. */
 function Create() {
-  const tile = (id: string, icon: string, tone: string, label: string, hint: string, onClick: () => void) => (
+  const tile = (id: string, icon: string, tone: string, label: string, onClick: () => void) => (
     <button className="tile" id={'create-' + id} data-tone={tone} onClick={onClick}>
-      <span className="lib-bubble"><Icon name={icon} /></span><b>{label}</b><small>{hint}</small>
+      <Icon name={icon} /><b>{label}</b>
     </button>
   );
   return (
     <>
       <Title>Créer</Title>
       <div className="tiles" role="group" aria-label="Nouvelle note">
-        {tile('note', 'edit', 'yellow', 'Note', 'Texte, liste, carte…', () => { closeLayer(); createAndOpen(); })}
-        {tile('mic', 'mic', 'red', 'Vocal', 'Enregistrer', () => { closeLayer(); toggleRecording(); })}
-        {tile('import', 'download', 'blue', 'Importer', 'Photo, PDF, fichier', () => { useStore.setState({ importTarget: 'new' }); openLayer('import'); })}
+        {tile('import', 'download', 'blue', 'Importer', () => { useStore.setState({ importTarget: 'new' }); openLayer('import'); })}
+        {tile('mic', 'mic', 'red', 'Vocal', () => { closeLayer(); toggleRecording(); })}
+        {tile('note', 'edit', 'yellow', 'Note', () => { closeLayer(); createAndOpen(); })}
       </div>
       <Row icon="calendar" label="Note du jour" trailing={day(Date.now())} onClick={dailyNote} />
     </>
@@ -132,139 +131,10 @@ const IosInstall = () => (
   </>
 );
 
-/* ---------- Library ---------- */
-function FolderEditRow({ folder }: { folder: string }) {
-  const s = useStore(useShallow(s => ({ renaming: s.layer.renaming === folder, coloring: s.layer.coloring === folder, color: folderColor(folder, s.folderColors) })));
-  if (s.renaming) return <InlineForm onSubmit={renameFolder} button="Valider le nouveau nom" inputProps={{ defaultValue: folder, 'aria-label': 'Nouveau nom du dossier' }} />;
-  return (
-    <>
-      <div className="row row-static" data-color={s.color}>
-        <button className="icon-btn row-color" onClick={() => patchLayer({ coloring: s.coloring ? null : folder, renaming: null })} aria-expanded={s.coloring}
-          aria-label={`Couleur de ${folder} : ${FOLDER_COLORS[s.color - 1]}`}><Icon name="folder" /></button>
-        <span className="row-label">{folder}</span>
-        <span className="row-actions">
-          <button className="icon-btn" onClick={() => patchLayer({ renaming: folder })} aria-label={'Renommer ' + folder}><Icon name="edit" /></button>
-          <button className="icon-btn danger-text" onClick={() => deleteFolder(folder)} aria-label={'Supprimer le dossier ' + folder}><Icon name="trash" /></button>
-        </span>
-      </div>
-      {s.coloring && (
-        <div className="swatches" role="group" aria-label={'Couleur de ' + folder}>
-          {FOLDER_COLORS.map((c, i) => (
-            <button key={c} className="swatch" data-color={i + 1} onClick={() => setFolderColor(folder, i + 1)} aria-pressed={s.color === i + 1} aria-label={c}><Icon name="check" /></button>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-function CollectionEditRow({ name }: { name: string }) {
-  const renaming = useStore(s => s.layer.renaming === 'c:' + name);
-  if (renaming) return <InlineForm onSubmit={v => renameCollection(name, v)} button="Valider le nouveau nom" inputProps={{ defaultValue: name, 'aria-label': 'Nouveau nom de la collection' }} />;
-  return (
-    <div className="row row-static">
-      <Icon name="filter" />
-      <span className="row-label">{name}</span>
-      <span className="row-actions">
-        <button className="icon-btn" onClick={() => patchLayer({ renaming: 'c:' + name })} aria-label={'Renommer ' + name}><Icon name="edit" /></button>
-        <button className="icon-btn danger-text" onClick={() => deleteCollection(name)} aria-label={'Supprimer la collection ' + name}><Icon name="trash" /></button>
-      </span>
-    </div>
-  );
-}
-/** The Library: a full page of views, folders, tags and collections — tiles instead of rows. */
-function Library() {
-  const s = useStore(useShallow(s => ({
-    tab: s.prefs.tab, folders: s.folders, newFolder: s.layer.newFolder, edit: s.layer.editFolders, unlocked: s.hiddenUnlocked,
-    notes: s.notes, collections: s.prefs.collections, colors: s.folderColors,
-  })));
-  const state = get(), live = s.notes.filter(n => !n.deleted && !n.locked), linked = live.some(n => entities(n).links.length);
-  const views = ['all', ...KINDS.filter(k => s.tab === k || countIn(state, k) > 0)];
-  const tags = new Map<string, number>();
-  live.forEach(n => tagsOf(n).forEach(t => tags.set(t, (tags.get(t) || 0) + 1)));
-  const top = Math.max(1, ...tags.values());
-  const tile = (t: string, label = tabLabel(t), count: number | string = countIn(state, t), onClick = () => setTab(t)) => (
-    <button key={t} className="lib-tile" data-tone={KIND_TONE[t]} aria-pressed={s.tab === t} onClick={onClick}>
-      <span className="lib-bubble"><Icon name={KIND_ICON[t] || 'graph'} /></span>
-      <b>{shown(count) ? count : ''}</b>
-      <span>{label}</span>
-    </button>
-  );
-  const recent = (f: string) => live.filter(n => n.folder === f).sort((a, b) => b.updated - a.updated);
-  return (
-    <div className="lib">
-      <header className="lib-head">
-        <div>
-          <h2>Bibliothèque</h2>
-          <p>{plural(live.length, 'note', 'notes')}{s.folders.length ? ' · ' + plural(s.folders.length, 'dossier', 'dossiers') : ''}</p>
-        </div>
-        <button className="icon-btn glass" onClick={toggleEditFolders} aria-label="Modifier les dossiers" aria-pressed={s.edit}><Icon name="edit" /></button>
-        <button className="icon-btn glass" onClick={closeLayer} aria-label="Fermer"><Icon name="close" /></button>
-      </header>
-
-      <section className="lib-section">
-        <h4>Vues</h4>
-        <div className="lib-tiles">
-          {views.map(t => tile(t))}
-          {linked && tile('map', 'Carte des liens', '', () => { closeLayer(); openMap(); })}
-        </div>
-      </section>
-
-      <section className="lib-section">
-        <h4>Dossiers</h4>
-        {s.edit ? <div className="lib-rows">{s.folders.map(f => <FolderEditRow key={f} folder={f} />)}</div> : (
-          <div className="lib-folders">
-            {countIn(state, 'none') > 0 && (
-              <button className="lib-folder" aria-pressed={s.tab === 'none'} onClick={() => setTab('none')}>
-                <span className="lib-folder-name">{tabLabel('none')}</span><b>{countIn(state, 'none')}</b>
-              </button>
-            )}
-            {s.folders.map(f => {
-              const notes = recent(f);
-              return (
-                <button key={f} className="lib-folder" data-color={folderColor(f, s.colors)} aria-pressed={s.tab === 'f:' + f} onClick={() => setTab('f:' + f)}>
-                  <span className="lib-folder-name">{f}</span>
-                  {notes.length > 0 && <b>{notes.length}</b>}
-                  <span className="lib-peek">{notes.slice(0, 2).map(n => <i key={n.id}>{n.title || 'Sans titre'}</i>)}</span>
-                </button>
-              );
-            })}
-            {!s.newFolder && <button className="lib-folder is-new" onClick={toggleNewFolder}><Icon name="folderNew" /><span>Nouveau dossier</span></button>}
-          </div>
-        )}
-        {s.newFolder && <NewFolder />}
-      </section>
-
-      {tags.size > 0 && !s.edit && (
-        <section className="lib-section">
-          <h4>Étiquettes</h4>
-          <div className="lib-cloud">
-            {[...tags].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr')).map(([t, n]) => (
-              <button key={t} className="lib-tag" aria-pressed={s.tab === 't:' + t} onClick={() => setTab('t:' + t)}
-                style={{ '--weight': n / top } as React.CSSProperties}>#{t}{n > 1 && <small>{n}</small>}</button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!!s.collections?.length && (
-        <section className="lib-section">
-          <h4>Collections</h4>
-          {s.edit ? <div className="lib-rows">{s.collections.map(c => <CollectionEditRow key={c.name} name={c.name} />)}</div>
-            : <div className="chips">{s.collections.map(c => <button key={c.name} className="chip" aria-pressed={s.tab === 'c:' + c.name} onClick={() => setTab('c:' + c.name)}><Icon name="filter" />{c.name}</button>)}</div>}
-        </section>
-      )}
-
-      <section className="lib-section lib-tiles is-small">
-        {tile('locked', tabLabel('locked'), s.unlocked ? countIn(state, 'locked') : '')}
-        {countIn(state, 'trash') > 0 && tile('trash')}
-      </section>
-    </div>
-  );
-}
 function Picker() {
   const s = useStore(useShallow(s => ({ folders: s.folders, newFolder: s.layer.newFolder, selecting: s.selecting, current: (menuNote(s) || openNote(s))?.folder })));
   const here = (t: string) => !s.selecting && s.current !== undefined && (t === 'none' ? !s.current : s.current === tabFolder(t));
-  const row = (t: string) => <TabRow key={t} tab={t} trailing={here(t) ? '✓' : ''} pressed={here(t)} onClick={() => moveTo(tabFolder(t))} />;
+  const row = (t: string) => <TabRow key={t} tab={t} pressed={here(t)} onClick={() => moveTo(tabFolder(t))} />;
   return (
     <>
       <Title>Déplacer vers</Title>
@@ -382,7 +252,6 @@ const LAYERS: Record<LayerMode, { label: string; Content: () => React.ReactNode 
   import: { label: 'Importer', Content: Import },
   'list-actions': { label: 'Actions de la liste', Content: ListActions },
   'ios-install': { label: 'Installer sur iPhone', Content: IosInstall },
-  library: { label: 'Bibliothèque', Content: Library },
   picker: { label: 'Choisir un dossier', Content: Picker },
   pin: { label: 'Code PIN', Content: Pin },
   remind: { label: 'Rappel', Content: Remind },
@@ -395,8 +264,8 @@ const LAYERS: Record<LayerMode, { label: string; Content: () => React.ReactNode 
 export function LayerHost() {
   const mode = useStore((s: State) => s.layer.mode), def = mode ? LAYERS[mode] : null;
   return (
-    <Layer open={!!mode} onClose={closeLayer} label={def?.label || ''} className={'layer glass' + (mode === 'library' ? ' lib-page' : '')}
-      anchor={mode !== 'library'} drawer={mode === 'outline' || mode === 'history'} data={{ 'data-mode': mode || undefined }}>
+    <Layer open={!!mode} onClose={closeLayer} label={def?.label || ''} className="layer glass"
+      anchor drawer={mode === 'outline' || mode === 'history'} data={{ 'data-mode': mode || undefined }}>
       {def && <def.Content />}
     </Layer>
   );

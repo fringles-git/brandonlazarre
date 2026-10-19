@@ -63,7 +63,7 @@ export interface Prefs {
 
 export type SheetMode = 'study' | 'map' | 'overview' | 'settings' | 'about' | 'news';
 export type LayerMode =
-  | 'create' | 'note-menu' | 'import' | 'list-actions' | 'ios-install' | 'library' | 'picker'
+  | 'create' | 'note-menu' | 'import' | 'list-actions' | 'ios-install' | 'picker'
   | 'pin' | 'remind' | 'history' | 'sel-more' | 'outline' | 'sort';
 export type PinStep = 'new' | 'auth' | 'change';
 
@@ -80,4 +80,6 @@ export interface Layer {
   resetArmed: boolean;
 }
 
-export interface Toast { id: number; message: string; label: string; action: (() => void) | null }
+export interface Toast { id: number; message: string; label: string; action: (() => void) | null; kind?: ChangeKind }
+/** One voice for state marks: new (amber), fix (red), better / on (green). */
+export type ChangeKind = 'new' | 'fix' | 'better';

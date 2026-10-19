@@ -20,6 +20,7 @@ export interface State {
   memOnly: boolean;
   storageInfo: { used: number; persisted: boolean } | null;
   query: string;
+  page: 'notes' | 'library';   // the two destinations of the dock; everything else opens over them
   searchOpen: boolean;
   searchKind: Kind | null;
   importTarget: 'new' | 'open';
@@ -66,6 +67,7 @@ export const useStore = create<State>()(() => ({
   memOnly: false,
   storageInfo: null,
   query: '',
+  page: 'notes',
   searchOpen: false,
   searchKind: null,
   importTarget: 'new',

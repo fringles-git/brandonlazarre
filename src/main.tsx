@@ -8,12 +8,13 @@ import { CONFIG } from './config';
 import { releaseUrls } from './media';
 import { set, useStore, type BeforeInstallPromptEvent } from './store';
 import { checkTab, toast } from './actions';
-import { analyse, boot } from './features';
+import { analyse, boot, persistStorage } from './features';
 import { bindGestures } from './gestures';
 import { Dock } from './ui/Dock';
 import { Editor } from './ui/Editor';
 import { FileInputs } from './ui/Files';
 import { LayerHost } from './ui/Layers';
+import { Library } from './ui/Library';
 import { Header, InfoBar, NoteList, Recap } from './ui/List';
 import { PrintArea, SheetHost, Toast } from './ui/Sheets';
 import { Tour, Welcome } from './ui/Welcome';
@@ -25,7 +26,7 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || !isSecureContext || import.meta.env.DEV) return;
   navigator.serviceWorker.register(new URL('sw.js', location.href).href, { updateViaCache: 'none' }).then(reg => {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
-    const offer = (w: ServiceWorker) => toast('Nouvelle version disponible.', () => w.postMessage('skip-waiting'), 'Recharger');
+    const offer = (w: ServiceWorker) => toast('Nouvelle version disponible.', () => w.postMessage('skip-waiting'), 'Recharger', 'new');
     if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const w = reg.installing!;
@@ -45,7 +46,7 @@ function useInstall() {
     const onInstalled = () => { set(s => ({ install: { ...s.install, prompt: null } })); toast('Notes est installée.'); };
     addEventListener('beforeinstallprompt', onPrompt);
     addEventListener('appinstalled', onInstalled);
-    if (standalone) navigator.storage?.persist?.().catch(() => {});
+    if (standalone) persistStorage();
     registerServiceWorker();
     return () => { removeEventListener('beforeinstallprompt', onPrompt); removeEventListener('appinstalled', onInstalled); };
   }, []);
@@ -75,17 +76,19 @@ function App() {
   useInstall();
   useDocumentState();
   const isWide = useWide();
-  const s = useStore(useShallow(s => ({ ready: s.ready, editing: s.editor.id !== null, sheet: s.sheet })));
+  const s = useStore(useShallow(s => ({ ready: s.ready, editing: s.editor.id !== null, sheet: s.sheet, page: s.page })));
   if (!s.ready) return null;
   const covered = (s.editing && !isWide) || !!s.sheet;
   return (
     <>
       <div className="ambient" aria-hidden="true" />
       <div className="page" inert={covered || undefined}>
-        <Header />
-        <Recap />
-        <InfoBar />
-        <NoteList onShown={analyse} />
+        {s.page === 'library' ? <Library /> : <>
+          <Header />
+          <Recap />
+          <InfoBar />
+          <NoteList onShown={analyse} />
+        </>}
       </div>
       <div inert={covered || undefined}><Dock /></div>
       <FileInputs />

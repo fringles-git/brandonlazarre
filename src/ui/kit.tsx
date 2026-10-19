@@ -1,9 +1,10 @@
 /** Shared building blocks: layers, rows, chips, inline forms, segmented controls, highlighted & formatted text. */
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import type { Prefs } from '../types';
+import type { ChangeKind, Prefs } from '../types';
+import { CHANGE_KINDS } from '../config';
 import { parseInline, parseLine, TAG, headingLevel } from '../markdown';
 import { folderColor, useStore } from '../store';
-import { setPref } from '../actions';
+import { setPref, submitFolder } from '../actions';
 import { wide } from '../utils';
 import { Icon } from './icons';
 
@@ -25,19 +26,18 @@ let trigger: Element | null = null;
 document.addEventListener('pointerdown', e => { trigger = (e.target as Element).closest('button, [role=button]'); }, true);
 document.addEventListener('keydown', () => { trigger = document.activeElement; }, true);
 
-/** A control near the top opens a dropdown right under it (any screen); near the bottom, a phone gets a sheet under the thumb
-    and a wider screen a popover just above the control. */
+/** A menu opens beside the control that called it, on every screen: under it near the top, just above it near the bottom
+    (on a phone that is a full-width panel right above the dock, which stays). Above the keyboard too (--kb). */
 function anchorTo(el: Element | null): CSSProperties | undefined {
   const r = el?.getBoundingClientRect();
   if (!r?.width) return;
   const vw = document.documentElement.clientWidth, edge = 12, gap = 8, below = r.top + r.height / 2 < innerHeight / 2;
-  if (!below && !wide()) return;
   const w = Math.min(below ? 320 : 380, vw - 2 * edge), mid = r.left + r.width / 2;
   const left = Math.min(Math.max(edge, mid > vw / 2 ? r.right - w : below ? r.left : mid - w / 2), vw - w - edge);
   const origin = `${mid - left}px ${below ? '0' : '100%'}`;
   return below
     ? { left, right: 'auto', width: w, top: r.bottom + gap, bottom: 'auto', maxHeight: innerHeight - r.bottom - gap - edge, transformOrigin: origin }
-    : { left, right: 'auto', width: w, bottom: innerHeight - r.top + gap, maxHeight: r.top - gap - edge, transformOrigin: origin };
+    : { left, right: 'auto', width: w, bottom: `calc(${innerHeight - r.top + gap}px + var(--kb))`, maxHeight: r.top - gap - edge, transformOrigin: origin };
 }
 
 /** A glass panel with its own scrim. Focus moves in on open and back on close.
@@ -111,6 +111,8 @@ export function InlineForm({ onSubmit, button, autoFocus = true, inputProps }: {
   );
 }
 
+export const NewFolder = () => <InlineForm onSubmit={submitFolder} button="Créer le dossier" inputProps={{ placeholder: 'Nom du dossier', 'aria-label': 'Nom du dossier' }} />;
+
 type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'font' | 'sort' | 'dir' | 'by';
 export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K; label: string; options: [Prefs[K], ReactNode][] }) {
   const value = useStore(s => s.prefs[pref]), at = Math.max(0, options.findIndex(([v]) => v === value));
@@ -126,12 +128,17 @@ export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K
     </>
   );
 }
-/** On/off with a sliding knob. */
+/** On/off: a squared knob slides and says its state — ✓ on green, − off. */
 export const Switch = ({ on, label, note, onClick }: { on: boolean; label: string; note?: ReactNode; onClick: () => void }) => (
   <button className="option" role="switch" aria-checked={on} onClick={onClick}>
     <span>{label}{shown(note) && <small className="option-note">{note}</small>}</span>
-    <span className="switch" aria-hidden="true"><i /></span>
+    <span className="switch" aria-hidden="true"><i><Icon name={on ? 'check' : 'minus'} /></i></span>
   </button>
+);
+
+/** State mark: one small squared badge for every "what kind of change" signal (patch notes, update toast). */
+export const StateMark = ({ kind }: { kind: ChangeKind }) => (
+  <span className="state-mark" data-kind={kind} aria-hidden="true"><Icon name={CHANGE_KINDS.find(k => k.kind === kind)!.icon} /></span>
 );
 export function Option<K extends keyof Prefs>({ pref, value, label, note }: { pref: K; value: Prefs[K]; label: string; note?: string }) {
   const on = useStore(s => s.prefs[pref] === value);

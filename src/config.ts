@@ -1,4 +1,4 @@
-import type { Note, Prefs } from './types';
+import type { ChangeKind, Note, Prefs } from './types';
 
 /** Tunables — one place for every magic number. */
 export const CONFIG = {
@@ -50,8 +50,8 @@ export const KIND_TONE: Record<string, string> = {
 };
 
 export const TAB_LABEL: Record<string, string> = {
-  all: 'Tout', week: 'Cette semaine', lists: 'Listes', dated: 'Avec une date', links: 'Liens', photos: 'Photos',
-  audio: 'Notes vocales', pdfs: 'PDF', study: 'À réviser', none: 'Non catégorisé', trash: 'Récemment supprimé', locked: 'Notes masquées',
+  all: 'Toutes les notes', week: 'Cette semaine', lists: 'Listes', dated: 'Avec une date', links: 'Liens', photos: 'Photos',
+  audio: 'Notes vocales', pdfs: 'PDF', study: 'À réviser', none: 'Sans dossier', trash: 'Corbeille', locked: 'Notes masquées',
 };
 
 /** What an empty note can become (¦ = caret). Shown as chips while the note is empty. */
@@ -102,10 +102,33 @@ export const CHANGE_KINDS = [
   { kind: 'fix', title: 'Corrections', one: 'correction', many: 'corrections', icon: 'bug' },
   { kind: 'better', title: 'Améliorations', one: 'amélioration', many: 'améliorations', icon: 'improve' },
 ] as const;
-type ChangeKind = (typeof CHANGE_KINDS)[number]['kind'];
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-19',
+    changes: {
+      new: [
+        'La Bibliothèque est une page comme la liste : son titre, la barre du bas reste ; un dossier ouvert revient à la Bibliothèque',
+        'Réglages → Aide : visite guidée, guide d’utilisation et Quoi de neuf, à revoir quand vous voulez',
+        'Police des notes au choix : Figtree ou Literata',
+      ],
+      better: [
+        'La barre du bas ne disparaît plus : + devient ✕ et referme le menu, les onglets restent utilisables',
+        'Créer : Importer, Vocal, Note (le plus près du pouce), icônes au trait dans leur couleur, sans légende',
+        'Survol, appui et sélection animés de la même façon partout ; un choix se montre teinté et cerclé, jamais en noir',
+        'Recherche : plus de « Tout », un filtre se retire en le touchant à nouveau',
+        'Interrupteurs carrés avec ✓ ou −, comme le reste de l’interface ; nouveautés, corrections et améliorations marquées pareil partout',
+        'Sur tablette, Réglages, À propos et Quoi de neuf s’ouvrent sur le côté du pouce ; l’accueil reste au centre',
+        'Thème sombre : la barre du bas retrouve son verre sombre',
+      ],
+      fix: [
+        'Dans une carte, les titres du texte ne dépassent plus le titre de la note',
+        'Noms alignés : Corbeille, Sans dossier, Toutes les notes',
+        'Le stockage se protège seul à l’installation et à chaque export',
+      ],
+    },
+  },
   {
     date: '2026-10-19',
     changes: {
@@ -277,7 +300,7 @@ const WELCOME = `Notes garde vos idées, listes, photos et messages vocaux **sur
 - [ ] Exporter une première sauvegarde
 
 ## Bon à savoir
-- La visite guidée et le journal des modifications sont dans **Réglages → À propos**.
+- La visite guidée, le guide et les nouveautés sont dans **Réglages → Aide**.
 - Ajoutez Notes à l’écran d’accueil : elle s’ouvre comme une app et le navigateur ne peut plus effacer vos notes.
 
 Bonne écriture !`;

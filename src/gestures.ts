@@ -3,7 +3,7 @@ import { CONFIG, TOUR } from './config';
 import { icons } from './ui/icons';
 import { get, isGuiding, noteById, set } from './store';
 import {
-  closeEditor, closeLayer, closeSearch, closeSheet, createAndOpen, dailyNote, doSwipe, endSelecting, flushEditor, fromTemplate,
+  closeEditor, closeLayer, closeSearch, closeSheet, createAndOpen, dailyNote, doSwipe, endSelecting, flushEditor, fromTemplate, goHome,
   openSearch, reorderPinned, startSelecting, swipeAction,
 } from './actions';
 import { answer, checkReminders, importShared, reveal, tourStep } from './features';
@@ -204,6 +204,7 @@ function onKey(e: KeyboardEvent) {
     if (s.searchOpen) return closeSearch();
     if (s.editor.id !== null) return closeEditor();
     if (s.selecting) return endSelecting();
+    if (s.page === 'library') return goHome();
     return;
   }
   if (s.tour !== null && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
