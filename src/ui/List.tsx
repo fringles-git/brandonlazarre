@@ -199,7 +199,7 @@ const Card = memo(function Card({ note, inShelf, grip, selected, selecting, isOp
     <article className={'card' + (selected ? ' selected' : '') + (grip ? ' has-grip' : '') + (isOpen ? ' is-open' : '')}
       data-id={note.id} data-color={color ?? undefined} data-pinned={note.pinned || undefined}>
       <span className="card-check" aria-hidden="true"><Icon name="check" /></span>
-      {grip && <span className="card-grip" aria-hidden="true" title="Glisser pour réordonner"><Icon name="grip" /></span>}
+      {grip && <span className="card-grip" aria-hidden="true" title="Glisser, ou Alt + ↑ ↓, pour réordonner"><Icon name="grip" /></span>}
       <CardMedia note={note} />
       <div className="card-head">
         <h3 className="card-title">

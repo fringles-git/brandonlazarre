@@ -210,7 +210,6 @@ function Settings() {
         <Segmented pref="theme" label="Thème" options={THEMES} />
         <Segmented pref="hand" label="Main dominante" options={HANDS} />
         <Segmented pref="tint" label="Couleur des dossiers" options={[['off', 'Pastille'], ['on', 'Teinter']]} />
-        <Segmented pref="font" label="Police des notes" options={[['sans', 'Figtree'], ['serif', <span className="serif-sample">Literata</span>]]} />
       </div>
       <div>
         {s.canInstall && <><h4>Application</h4><button className="option" onClick={install}>Installer l’app sur cet appareil</button></>}

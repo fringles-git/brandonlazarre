@@ -1,17 +1,5 @@
 /* Notes — design tokens. Liquid glass over a calm ambient field. */
 
-/* Literata (SIL OFL), the reading face of « Police des notes » — latin only, loaded when chosen */
-@font-face {
-  font-family: 'Literata Variable'; font-style: normal; font-weight: 200 900; font-display: swap;
-  src: url(../../node_modules/@fontsource-variable/literata/files/literata-latin-wght-normal.woff2) format('woff2-variations');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Literata Variable'; font-style: italic; font-weight: 200 900; font-display: swap;
-  src: url(../../node_modules/@fontsource-variable/literata/files/literata-latin-wght-italic.woff2) format('woff2-variations');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
 :root {
   color-scheme: light dark;
 
@@ -46,7 +34,9 @@
     0 1px 2px light-dark(#1218300f, #0000004d),
     0 10px 30px light-dark(#1218301f, #00000073);
 
-  /* Accent: Notes yellow; select: system blue */
+  /* One meaning per colour, everywhere — a colour never decorates:
+     amber = create, commit, current, progress · blue = selection, focus · red = delete, recording
+     green = done, switched on · folder colours = organisation only (kind tones: outline icons and tints) */
   --color-accent: #f4c542;
   --color-accent-deep: light-dark(#8c6600, #e0ac1c);   /* amber as ink (ticks, strokes, labels): ≥4.5:1; fills stay --color-accent */
   --color-on-accent: #1a1608;
@@ -109,6 +99,7 @@
   --dock-inset-l: max(var(--edge-l), (100vw - var(--dock-max)) / 2);   /* where the dock's sides fall: things above it line up */
   --dock-inset-r: max(var(--edge-r), (100vw - var(--dock-max)) / 2);
   --split-list: max(36vw, 22rem);   /* list pane when the note opens beside it */
+  --drawer-w: min(26rem, 45vw);   /* side panels on wide screens */
 
   /* Shape: every radius = its box height ÷ 3; containers stay concentric (inner radius + padding) */
   --radius-ratio: 3;
@@ -117,12 +108,9 @@
   --radius-row: calc(48px / var(--radius-ratio));
   --radius-panel: calc(var(--radius-row) + var(--space-2));
   --radius-card: calc(var(--space-4) + 24px / var(--radius-ratio));
-  --radius-pill: 999px;
 
   /* Type */
   --font: 'Figtree Variable', Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-serif: 'Literata Variable', Literata, Georgia, serif;
-  --font-notes: var(--font);
   --text-2xs: 10.5px;
   --text-xs: 12px;
   --text-sm: 13.5px;
@@ -143,7 +131,6 @@
 
 :root[data-theme='light'] { color-scheme: light; }
 :root[data-theme='dark'] { color-scheme: dark; }
-body[data-font='serif'] { --font-notes: var(--font-serif); }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --fast: 1ms; --base: 1ms; --slow: 1ms; }

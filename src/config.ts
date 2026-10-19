@@ -30,7 +30,7 @@ export const FOLDER_COLORS = ['bleu', 'orange', 'vert', 'violet', 'rose', 'turqu
 
 export const DEFAULT_PREFS: Prefs = {
   tab: 'all', view: 'cards', sort: 'updated', dir: 'desc', by: 'all',
-  theme: 'auto', hand: 'right', tint: 'off', font: 'sans',
+  theme: 'auto', hand: 'right', tint: 'off',
 };
 
 /* Smart views shown in the Library and the search filter chips */
@@ -105,6 +105,23 @@ export const CHANGE_KINDS = [
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-19',
+    changes: {
+      new: [
+        'Sur tablette, Plan et Historique s’ouvrent à côté de la note sans la couvrir : on continue d’écrire, le plan reste ouvert',
+        'Clic droit sur une note, à la souris : son menu',
+        'Alt + ↑ / ↓ sur une note épinglée la monte ou la descend',
+      ],
+      better: [
+        'La barre du bas glisse d’un onglet à l’autre, comme les choix des Réglages',
+        'Numéros de version, étiquettes et points suivent la règle ÷3 : plus aucune forme ronde',
+        'Une seule police, Figtree, pour l’interface et les notes',
+        'Les notes Bienvenue et Comment utiliser jamais modifiées suivent le texte à jour',
+        'Au lancement, le fond suit le thème clair ou sombre avant même l’affichage',
+      ],
+    },
+  },
   {
     date: '2026-10-19',
     changes: {
@@ -327,10 +344,12 @@ Ctrl sur Windows, ⌘ sur Mac :
 - Ctrl + K : lien · Ctrl + Maj + K : carte à réviser
 - Ctrl + Alt + 1 / 2 / 3 : titres
 - Sur l’accueil : **N** note, **L** liste, **D** journal du jour, **/** rechercher
+- **Alt + ↑ / ↓** sur une note épinglée : la monter ou la descendre
 
 # Organiser
 - Glissez une note à droite : **épingler** ; à gauche : **supprimer**
 - **Appui long** : sélectionner plusieurs notes (déplacer, fusionner, partager)
+- **Clic droit** sur une note, à la souris : son menu
 - **⋮** sur une note : épingler, déplacer, rappel, partager, masquer
 - **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (code PIN), corbeille
 

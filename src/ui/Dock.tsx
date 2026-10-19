@@ -28,6 +28,7 @@ function MainDock() {
     const all = s.page === 'notes' && s.prefs.tab === 'all';
     return { home: all && !s.sheet, library: !all && !s.sheet, settings: s.sheet === 'settings' };
   }));
+  const at = s.home ? 0 : s.library ? 1 : s.settings ? 3 : -1;   // Recherche (2) is a mode, never a place
   /** A destination says where you are (aria-current); a panel says whether it is open (aria-pressed). */
   const tab = (id: string, icon: string, label: string, onClick: () => void, on: boolean, popup = false) => (
     <button className="tab-btn" id={id} onClick={onClick} {...(popup ? { 'aria-pressed': on, 'aria-haspopup': 'dialog' as const } : { 'aria-current': on ? 'page' as const : undefined })}>
@@ -36,7 +37,8 @@ function MainDock() {
   );
   return (
     <nav className="dock thumb-row main-dock" aria-label="Navigation">
-      <div className="island glass" id="nav-island">
+      <div className="island glass" id="nav-island" style={{ '--i': Math.max(at, 0), '--n': 4 } as React.CSSProperties}>
+        <span className="seg-thumb" data-off={at < 0 || undefined} aria-hidden="true" />
         {tab('nav-notes', 'all', 'Notes', goHome, s.home)}
         {tab('nav-library', 'library', 'Bibliothèque', goLibrary, s.library)}
         {tab('search-button', 'search', 'Recherche', openSearch, false)}

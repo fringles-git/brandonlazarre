@@ -25,6 +25,8 @@ function useExit<T>(value: T | null, ms = 200) {
 let trigger: Element | null = null;
 document.addEventListener('pointerdown', e => { trigger = (e.target as Element).closest('button, [role=button]'); }, true);
 document.addEventListener('keydown', () => { trigger = document.activeElement; }, true);
+/** Lets a gesture (right-click on a card) say which control a menu belongs to. */
+export const anchorFrom = (el: Element | null) => { trigger = el; };
 
 /** A menu opens beside the control that called it, on every screen: under it near the top, just above it near the bottom
     (on a phone that is a full-width panel right above the dock, which stays). Above the keyboard too (--kb). */
@@ -41,14 +43,15 @@ function anchorTo(el: Element | null): CSSProperties | undefined {
 }
 
 /** A glass panel with its own scrim. Focus moves in on open and back on close.
-    `anchor`: placed beside its control. `drawer`: on wide screens, a full-height panel from the thumb's edge (page stays sharp). */
-export function Layer({ open, onClose, label, className, children, initialFocus, style, data, anchor = false, drawer = false }: {
-  open: boolean; onClose: () => void; label: string; className: string; children: ReactNode; anchor?: boolean; drawer?: boolean;
+    `anchor`: placed beside its control. `drawer`: on wide screens, a full-height panel from the thumb's edge (page stays sharp).
+    `inspector`: a drawer that is not modal — no scrim, the note stays editable beside it, ✕ or Échap closes it. */
+export function Layer({ open, onClose, label, className, children, initialFocus, style, data, anchor = false, drawer = false, inspector = false }: {
+  open: boolean; onClose: () => void; label: string; className: string; children: ReactNode; anchor?: boolean; drawer?: boolean; inspector?: boolean;
   initialFocus?: () => HTMLElement | null | undefined; style?: CSSProperties; data?: Record<string, string | undefined>;
 }) {
   const { shown, closing } = useExit(open ? children : null), panel = useRef<HTMLDivElement>(null), back = useRef<Element | null>(null);
   const [placed, setPlaced] = useState<CSSProperties | undefined>();
-  const mode = data?.['data-mode'], side = drawer && wide();
+  const mode = data?.['data-mode'], side = (drawer || inspector) && wide(), free = inspector && side;
   useLayoutEffect(() => {
     if (!open || !anchor || side) return setPlaced(undefined);
     // A layer opened from inside another keeps the first one's place
@@ -65,10 +68,11 @@ export function Layer({ open, onClose, label, className, children, initialFocus,
   if (shown === null) return null;
   return (
     <>
-      <div className="scrim" data-closing={closing || undefined} data-light={placed || side ? '' : undefined} onClick={onClose} />
-      <div ref={panel} className={className} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
+      {!free && <div className="scrim" data-closing={closing || undefined} data-light={placed || side ? '' : undefined} onClick={onClose} />}
+      <div ref={panel} className={className} role="dialog" aria-modal={!free} aria-label={label} tabIndex={-1}
         data-open={open || undefined} data-closing={closing || undefined} data-anchored={placed ? '' : undefined} data-drawer={side ? '' : undefined}
-        style={{ ...placed, ...style }} {...data}>
+        data-inspector={free ? '' : undefined} style={{ ...placed, ...style }} {...data}>
+        {free && <button className="icon-btn panel-close" onClick={onClose} aria-label="Fermer le panneau"><Icon name="close" /></button>}
         {shown}
       </div>
     </>
@@ -113,7 +117,7 @@ export function InlineForm({ onSubmit, button, autoFocus = true, inputProps }: {
 
 export const NewFolder = () => <InlineForm onSubmit={submitFolder} button="Créer le dossier" inputProps={{ placeholder: 'Nom du dossier', 'aria-label': 'Nom du dossier' }} />;
 
-type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'font' | 'sort' | 'dir' | 'by';
+type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'sort' | 'dir' | 'by';
 export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K; label: string; options: [Prefs[K], ReactNode][] }) {
   const value = useStore(s => s.prefs[pref]), at = Math.max(0, options.findIndex(([v]) => v === value));
   return (

@@ -11,7 +11,7 @@ import {
   setPref, submitPin, toggleNewFolder, uncheckList, editorRefs,
 } from '../actions';
 import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
-import { caretTop, day, dayOrTime, dayTime, finePointer, plural, reducedMotion } from '../utils';
+import { caretTop, day, dayOrTime, dayTime, finePointer, plural, reducedMotion, wide } from '../utils';
 import { InlineForm, Layer, NewFolder, Option, Row } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
@@ -218,7 +218,7 @@ function SelMore() {
   );
 }
 function goToLine(line: number) {
-  closeLayer();
+  if (!wide()) closeLayer();   // beside the note (inspector), the plan stays open while you jump around
   if (get().editor.reading) return document.querySelector(`#note-view [data-line="${line}"]`)?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
   const el = editorRefs.body;
   if (!el) return;
@@ -265,7 +265,7 @@ export function LayerHost() {
   const mode = useStore((s: State) => s.layer.mode), def = mode ? LAYERS[mode] : null;
   return (
     <Layer open={!!mode} onClose={closeLayer} label={def?.label || ''} className="layer glass"
-      anchor drawer={mode === 'outline' || mode === 'history'} data={{ 'data-mode': mode || undefined }}>
+      anchor inspector={mode === 'outline' || mode === 'history'} data={{ 'data-mode': mode || undefined }}>
       {def && <def.Content />}
     </Layer>
   );

@@ -1,10 +1,11 @@
 /** Touch & keyboard: long-press select, swipe pin/trash, pinned reorder, pull-to-search, drag-to-close, shortcuts, paste. */
 import { CONFIG, TOUR } from './config';
 import { icons } from './ui/icons';
+import { anchorFrom } from './ui/kit';
 import { get, isGuiding, noteById, set } from './store';
 import {
   closeEditor, closeLayer, closeSearch, closeSheet, createAndOpen, dailyNote, doSwipe, endSelecting, flushEditor, fromTemplate, goHome,
-  openSearch, reorderPinned, startSelecting, swipeAction,
+  openNoteMenu, openSearch, reorderPinned, startSelecting, swipeAction,
 } from './actions';
 import { answer, checkReminders, importShared, reveal, tourStep } from './features';
 import { haptic, isTyping } from './utils';
@@ -171,12 +172,28 @@ function onTouchEnd() {
   if (go) openSearch();
 }
 
+/** Right-click (or the menu key) opens the note's menu, as on a desktop; a long touch still starts selecting. */
 function onContextMenu(e: MouseEvent) {
   const card = (e.target as HTMLElement).closest<HTMLElement>(CARD);
   if (!card) return;
   e.preventDefault();
   clearTimeout(press.timer);
-  if (!get().selecting) startSelecting(+card.dataset.id!);
+  if (get().selecting) return;
+  if ((e as PointerEvent).pointerType === 'touch') return startSelecting(+card.dataset.id!);
+  anchorFrom(card.querySelector('.card-more'));
+  openNoteMenu(+card.dataset.id!);
+}
+/** Alt + ↑ / ↓ on a pinned note moves it in the pinned shelf: the keyboard twin of dragging the grip. */
+function movePinned(e: KeyboardEvent) {
+  const card = (e.target as HTMLElement).closest?.<HTMLElement>(CARD + '[data-pinned]');
+  if (!card) return false;
+  const shelf = [...document.querySelectorAll<HTMLElement>(CARD + '[data-pinned]')], at = shelf.indexOf(card);
+  const target = shelf[at + (e.key === 'ArrowUp' ? -1 : 1)];
+  e.preventDefault();
+  if (!target) return true;
+  reorderPinned(+card.dataset.id!, +target.dataset.id!);
+  requestAnimationFrame(() => document.querySelector<HTMLElement>(`${CARD}[data-id="${card.dataset.id}"] .card-open`)?.focus());
+  return true;
 }
 function onPointerOut(e: PointerEvent) {
   const list = document.getElementById('note-list');
@@ -185,7 +202,7 @@ function onPointerOut(e: PointerEvent) {
 
 /* ---------- Keyboard ---------- */
 function trapTab(e: KeyboardEvent) {
-  const layer = [...document.querySelectorAll<HTMLElement>('.layer[data-open], .sheet[data-open]')].pop();
+  const layer = [...document.querySelectorAll<HTMLElement>('.layer[data-open]:not([data-inspector]), .sheet[data-open]')].pop();
   if (e.key !== 'Tab' || !layer) return false;
   const items = [...layer.querySelectorAll<HTMLElement>('button:not([disabled]),input,[tabindex="0"]')].filter(el => el.offsetParent);
   if (!items.length) return false;
@@ -207,6 +224,7 @@ function onKey(e: KeyboardEvent) {
     if (s.page === 'library') return goHome();
     return;
   }
+  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && movePinned(e)) return;
   if (s.tour !== null && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
     e.preventDefault();
     return tourStep(Math.min(TOUR.length, s.tour + (e.key === 'ArrowRight' ? 1 : -1)));

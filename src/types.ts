@@ -46,7 +46,6 @@ export interface Prefs {
   theme: 'auto' | 'light' | 'dark';
   hand: 'right' | 'left';
   tint: 'off' | 'on';
-  font: 'sans' | 'serif';
   formatBar?: boolean;
   ocr?: boolean;
   audioRate?: number;

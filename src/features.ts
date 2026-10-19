@@ -419,6 +419,11 @@ export async function boot() {
     STARTER_NOTES.forEach((s, i) => { if (!have.has(s.title.toLowerCase())) createNote({ ...s, folder: '', created: now + i, updated: now + i }); });
     setPref('guide', 1);
   }
+  // Starter notes nobody has edited follow the app's current wording
+  STARTER_NOTES.forEach(s => {
+    const n = get().notes.find(x => !x.deleted && x.title.trim().toLowerCase() === s.title.toLowerCase());
+    if (n && n.updated === n.created && n.body !== s.body) updateNote(n, { body: s.body });
+  });
   if (!prefs.onboarded) set({ welcome: true });
   const seen = prefs.seenVersion || (prefs.onboarded ? '2.1.0' : CURRENT.version);
   if (get().prefs.seenVersion !== CURRENT.version) setPref('seenVersion', CURRENT.version);

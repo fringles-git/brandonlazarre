@@ -55,13 +55,13 @@ function useInstall() {
 /** Mirrors preferences and modes onto <html>/<body> for CSS. */
 function useDocumentState() {
   const s = useStore(useShallow(s => ({
-    theme: s.prefs.theme, hand: s.prefs.hand, tint: s.prefs.tint, font: s.prefs.font, editing: s.editor.id !== null,
+    theme: s.prefs.theme, hand: s.prefs.hand, tint: s.prefs.tint, editing: s.editor.id !== null,
     selecting: s.selecting, searching: s.searchOpen, recording: s.recorder.on, layer: !!s.layer.mode || !!s.sheet, notes: s.notes,
   })));
   useLayoutEffect(() => {
     const root = document.documentElement, body = document.body;
     if (s.theme === 'auto') delete root.dataset.theme; else root.dataset.theme = s.theme;
-    Object.assign(body.dataset, { hand: s.hand, tint: s.tint, font: s.font });
+    Object.assign(body.dataset, { hand: s.hand, tint: s.tint });
     body.classList.toggle('is-editing', s.editing);
     body.classList.toggle('is-selecting', s.selecting);
     body.classList.toggle('is-searching', s.searching);
