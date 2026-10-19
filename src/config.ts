@@ -85,7 +85,7 @@ export const TOUR = [
   { target: '#fab', title: 'Créer', text: '**+** ouvre trois choix : **Note**, **Vocal** ou **Importer** (photo, PDF, fichier). Une note vide propose ensuite : liste, carte à réviser, réunion…', hints: ['paste'] },
   { target: '#nav-island', title: 'Naviguer', text: '**Notes** revient à l’accueil, **Bibliothèque** range dossiers, étiquettes et collections, **Recherche** cherche partout, **Réglages** règle l’app.', hints: ['hidden', 'pull'] },
   { target: '#view-tools', title: 'Affichage', text: 'En haut : **cartes ou liste** et **trier**. Pour ne voir que les photos, listes ou dates : **Recherche** ou **Bibliothèque**.', hints: [] },
-  { target: '#note-list .card', title: 'Vos notes', text: 'Touchez pour ouvrir, **⋮** pour les actions. Glissez à droite pour épingler, à gauche pour supprimer ; **appui long** pour en sélectionner plusieurs.', hints: ['select', 'swipe'] },
+  { target: '#note-list .card', title: 'Vos notes', text: 'Touchez pour ouvrir, **⋮** pour les actions. Glissez à droite pour épingler, à gauche pour supprimer ; **appui long** (ou **S** au clavier) pour en sélectionner plusieurs.', hints: ['select', 'swipe'] },
   { target: null, title: 'Dans une note', text: 'En bas : **Aa** met en forme, **☑** ajoute une case, **📎** joint un fichier, **⋮** pour le reste, **✓** termine. Glissez la note vers le bas pour la fermer.', hints: ['links', 'cards'] },
 ];
 
@@ -106,6 +106,15 @@ export const CHANGE_KINDS = [
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-19',
+    changes: {
+      better: [
+        'Titres de section en minuscules, comme les titres de la liste : plus lisibles, plus de capitales',
+        'La visite guidée signale la touche S',
+      ],
+    },
+  },
   {
     date: '2026-10-19',
     changes: {

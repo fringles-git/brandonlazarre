@@ -20,3 +20,5 @@ jobs:
       - run: npm ci
       - run: npx playwright-core install --with-deps chromium
       - run: npm run smoke
+        env:
+          SHOTS: "off"   # reference shots belong to the machine that made them
