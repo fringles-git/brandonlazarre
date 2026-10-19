@@ -9,7 +9,7 @@ import { countIn, folderColor, inTrash, readableNotes, tabFolder, tabLabel, useS
 import { changePin, setPref, emptyTrash, goHome, goLibrary, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
 import { backupDue, currentHint, dismissHint, exportBackup, playCard, startStudy } from '../features';
 import { consumeClick } from '../gestures';
-import { bytes, clock, day, daysAgo, dayTime, eventDate, finePointer, fullDay, plural, relativeDay } from '../utils';
+import { bytes, clock, day, daysAgo, dayTime, eventDate, finePointer, fullDay, plural, relativeDay, time } from '../utils';
 import { FolderTag, Formatted, Highlight } from './kit';
 import { Icon } from './icons';
 
@@ -64,6 +64,10 @@ export function InfoBar() {
 type Widget = { key: string; tone: string; icon: string; label: string; title: string; detail?: string; img?: string; onClick: () => void };
 function widgets(notes: Note[]): Widget[] {
   const now = Date.now(), out: Widget[] = [];
+  // Open → write → close → come back: the note you were just writing, first and amber (current)
+  const recent = notes.filter(n => n.updated > n.created && now - n.updated < CONFIG.resumeMs && (n.title || n.body).trim())
+    .sort((a, b) => b.updated - a.updated)[0];
+  if (recent) out.push({ key: 'resume', tone: 'yellow', icon: 'edit', label: 'Reprendre', title: recent.title || 'Sans titre', detail: 'Modifiée à ' + time(recent.updated), onClick: () => open(recent.id) });
   const soon = notes.flatMap(n => [
     ...(n.remind && !n.remindDone && n.remind > now ? [{ n, at: n.remind, time: true }] : []),
     ...entities(n).dates.filter(d => +d.start >= now - 36e5 * 12).map(d => ({ n, at: +d.start, time: d.hasTime })),

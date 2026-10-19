@@ -47,6 +47,7 @@ export const icons: Record<string, string> = {
   merge: '<path d="M7 3v4a5 5 0 0 0 5 5 5 5 0 0 1 5 5v4M17 3v4a5 5 0 0 1-3 4.6"/><path d="M14 18l3 3 3-3"/>',
   study: '<rect x="3" y="7" width="14" height="13" rx="3"/><path d="M7 4h11a3 3 0 0 1 3 3v9"/>',
   extract: '<path d="M4 6h12M4 11h8M4 16h6"/><path d="M17 13v8M13 17h8"/>',
+  liveText: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 10h8M8 14h5"/>',
   doc: '<path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
   graph: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="M8.4 6.4l7.2 1.2M6.6 8.4l1.8 7.2M16.4 10l-5.8 6"/>',
   print: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',

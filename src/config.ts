@@ -9,6 +9,9 @@ export const CONFIG = {
   versionsMax: 10,
   attWarnBytes: 25e6,
   longPressMs: 450,
+  holdMs: 280,            // holding + opens Créer under the finger, ready to slide
+  resumeMs: 2 * 36e5,     // a note edited this recently is offered as "Reprendre"
+  shareLinkMax: 8000,     // longest note link, in characters, before falling back to text
   swipeStart: 12,
   swipeMax: 96,
   pullToSearch: 72,
@@ -106,6 +109,19 @@ export const CHANGE_KINDS = [
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-19',
+    changes: {
+      new: [
+        'Glisser depuis + : appuyez, glissez sur Note, Vocal ou Importer, relâchez — c’est créé',
+        'Ajouter le texte : les mots d’une photo ou d’un PDF vont dans la note, en un geste',
+        'Reprendre : la note que vous veniez d’écrire revient en tête de l’accueil',
+        'Envoyer un lien : une note voyage dans un lien, sans serveur ni compte',
+        'Exporter en Markdown (.zip) : dossiers et pièces jointes, prêts pour Obsidian',
+        'Raccourci « Note vocale » sur l’icône de l’app, et une pastille pour les cartes à réviser et les rappels du jour',
+      ],
+    },
+  },
   {
     date: '2026-10-19',
     changes: {
@@ -354,7 +370,7 @@ const WELCOME = `Notes garde vos idées, listes, photos et messages vocaux **sur
 Bonne écriture !`;
 
 const GUIDE = `# Créer
-- **+** : **Note**, **Vocal** ou **Importer** (photo, PDF, Markdown, EPUB)
+- **+** : **Note**, **Vocal** ou **Importer** (photo, PDF, Markdown, EPUB) — ou appuyez sur **+** et glissez jusqu’au choix
 - Note vide : choisissez **Liste**, **Carte à réviser**, **Réunion**, **Projet** ou **Journal du jour**
 - Collez une image ou un lien sur l’accueil : il devient une note
 
@@ -385,13 +401,13 @@ Ctrl sur Windows, ⌘ sur Mac :
 - **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (code PIN), corbeille
 
 # Retrouver
-**Recherche** lit aussi le texte des PDF et des photos. **Enregistrer** garde une recherche comme collection. En haut de l’accueil : cartes ou liste, et trier.
+**Recherche** lit aussi le texte des PDF et des photos ; **Ajouter le texte**, sur une photo ou un PDF, le met dans la note. **Enregistrer** garde une recherche comme collection. En haut de l’accueil : cartes ou liste, et trier.
 
 # Réviser
 Une ligne « Question :: Réponse » devient une carte. **⋮ → Réviser** vous interroge au bon moment.
 
 # Sauvegarder
-Rien n’est envoyé sur le cloud : exportez parfois une sauvegarde (**Réglages → Exporter les notes**). Chaque note garde ses 10 dernières versions.`;
+Rien n’est envoyé sur le cloud : exportez parfois une sauvegarde (**Réglages → Exporter les notes**), ou tout en Markdown pour Obsidian. **⋮ → Envoyer un lien** partage une note sans serveur. Chaque note garde ses 10 dernières versions.`;
 
 export const STARTER_NOTES: Pick<Note, 'title' | 'body'>[] = [
   { title: GUIDE_TITLE, body: GUIDE },

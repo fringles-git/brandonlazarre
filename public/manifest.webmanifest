@@ -16,6 +16,7 @@
   "shortcuts": [
     { "name": "Nouvelle note", "url": "./?new=note", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Nouvelle liste", "url": "./?new=list", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Note vocale", "short_name": "Vocal", "url": "./?new=voice", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Note du jour", "url": "./?new=today", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ],
   "share_target": {

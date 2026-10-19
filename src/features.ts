@@ -1,9 +1,9 @@
 /** Features around the notes: capture & import, attachments analysis, audio, reminders, sharing, study, exports, onboarding, boot. */
-import type { Note, Prefs } from './types';
+import type { Attachment, Note, Prefs } from './types';
 import { CONFIG, CURRENT, DAY, DEFAULT_FOLDERS, GUIDE_TITLE, HINTS, MSG, RELEASE_LIST, releasesSince, STARTER_NOTES, TOUR } from './config';
 import { attFromBackup, backupBlob, getAll, normalizeNote, openDb } from './db';
 import { dueCards, flashcards, grade, hostOf, removeCardLine, URL_RE } from './markdown';
-import { audioPeaks, epubToNotes, exportPptx, fileToAtt, htmlFileToNote, isHeavy, markdownToNote, ocrText, pdfText, releaseUrls, titleFromFile } from './media';
+import { audioPeaks, epubToNotes, exportPptx, fileToAtt, htmlFileToNote, isHeavy, markdownToNote, ocrText, pdfText, releaseUrls, titleFromFile, zip } from './media';
 import { get, noteById, openNote, set, tabFolder, tabLabel, tabNotes } from './store';
 import {
   checkTab, closeEditor, closeLayer, closeSearch, closeSheet, createAndOpen, createNote, editNote, endSelecting, fresh, open,
@@ -135,6 +135,22 @@ export function analyse(notes: Note[]) {
     else if (a.type === 'image' && a.text == null && get().prefs.ocr && !n.locked) { analysed.add(blob); ocrText(blob).then(text => done({ text })).catch(retry); }
   }));
 }
+/** Live text: the words of a photo or PDF, read now if they were not yet (the photo setting may be off). */
+export async function attText(noteId: number, a: Attachment) {
+  if (a.text != null || !a.blob) return a.text || '';
+  const text = a.type === 'image' ? await ocrText(a.blob) : a.type === 'pdf' ? (await pdfText(a.blob)).text : '';
+  patchAtt(noteId, a.blob, { text });
+  return text;
+}
+/** Adds an attachment's words at the end of the open note, with undo. */
+export function addAttText(text: string) {
+  const n = openNote(get()), words = text.trim();
+  if (!n) return;
+  if (!words) return toast('Aucun texte trouvé dans ce fichier.');
+  const before = n.body, body = before.trimEnd();
+  editNote({ body: (body ? body + '\n\n' : '') + words + '\n' }, { save: 'now' });
+  toast('Texte ajouté à la note.', () => { if (openNote(get())?.id === n.id) editNote({ body: before }, { save: 'now' }); });
+}
 export function toggleOcr() {
   const on = !get().prefs.ocr;
   setPref('ocr', on);
@@ -258,6 +274,64 @@ export async function shareNotes(list: Note[]) {
 }
 const withUnlocked = (list: Note[], fn: () => void) => (list.every(n => !n.locked) || get().hiddenUnlocked ? fn() : unlock(fn));
 export const shareOne = (n: Note) => withUnlocked([n], () => shareNotes([n]));
+
+/* ---------- A note as a link: no server, the note travels compressed in the #fragment (never sent to any site) ---------- */
+async function pack(data: object) {
+  const zipped = new Uint8Array(await new Response(new Blob([JSON.stringify(data)]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+  let bin = '';
+  zipped.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function unpack(code: string) {
+  const bin = atob(code.replace(/-/g, '+').replace(/_/g, '/'));
+  return JSON.parse(await new Response(new Blob([Uint8Array.from(bin, c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
+}
+export const shareLinkOne = (n: Note) => withUnlocked([n], async () => {
+  const url = new URL('./', location.href);
+  url.hash = 'n=' + (await pack({ t: n.title, b: n.body }));
+  if (url.href.length > CONFIG.shareLinkMax) return toast('Note trop longue pour un lien : partagez-la en texte.', () => shareNotes([n]), 'Partager');
+  const without = n.atts.length ? ' Les pièces jointes ne voyagent pas dans le lien.' : '';
+  if (navigator.share)
+    try { return await navigator.share({ title: n.title || 'Note', url: url.href }); } catch (e) { if ((e as Error).name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url.href); toast('Lien copié.' + without); } catch { toast('Copie impossible sur cet appareil.'); }
+});
+async function receiveLink(code: string) {
+  try {
+    const d = await unpack(code);
+    if (typeof d?.t !== 'string' || typeof d?.b !== 'string') throw Error('not a note');
+    createAndOpen({ title: d.t.slice(0, 500), body: d.b.slice(0, 2e5) });
+    const n = openNote(get());
+    toast('Note reçue par lien.', () => { if (n) { closeEditor(); removeNotes(fresh([n])); } });
+  } catch { toast('Ce lien de note est illisible ou incomplet.'); }
+}
+
+/* ---------- Every visible note as Markdown files in a .zip (an Obsidian-style vault: folders, attachments beside) ---------- */
+export function exportVault() {
+  const s = get(), list = s.notes.filter(n => !n.deleted && (!n.locked || s.hiddenUnlocked)), hidden = s.notes.some(n => !n.deleted && n.locked) && !s.hiddenUnlocked;
+  if (!list.length) return toast('Aucune note à exporter.');
+  toast('Préparation de l’archive…');
+  const taken = new Set<string>(), unique = (path: string, ext: string) => {
+    let p = path + ext;
+    for (let i = 2; taken.has(p.toLowerCase()); i++) p = `${path} (${i})${ext}`;
+    taken.add(p.toLowerCase());
+    return p;
+  };
+  const iso = (t: number) => new Date(t).toISOString().slice(0, 19);
+  const files = list.flatMap(n => {
+    const dir = 'Notes/' + (n.folder ? fileSafe(n.folder) + '/' : ''), name = fileSafe(n.title || 'Sans titre').slice(0, 80);
+    const atts = n.atts.filter(a => a.blob).map((a, i) => ({
+      path: unique(dir + 'attachments/' + name + ' ' + (i + 1), '.' + ((a.name?.match(/\.(\w+)$/)?.[1]) || a.blob!.type.split('/')[1]?.split(';')[0] || 'bin')),
+      data: a.blob!, date: n.updated,
+    }));
+    const md = ['---', 'created: ' + iso(n.created), 'updated: ' + iso(n.updated), ...(n.pinned ? ['pinned: true'] : []), '---', '',
+      n.body.trimEnd(), ...atts.map(a => '\n![[' + a.path.slice(dir.length) + ']]')].join('\n') + '\n';
+    return [{ path: unique(dir + name, '.md'), data: md, date: n.updated }, ...atts];
+  });
+  zip(files).then(blob => {
+    download(blob, 'notes-' + new Date().toISOString().slice(0, 10) + '.zip');
+    toast(plural(list.length, 'note exportée', 'notes exportées') + ' en Markdown' + (hidden ? ' (sans les notes masquées).' : '.'));
+  }, () => toast('Échec de l’export.'));
+}
 export function shareSelection() {
   const l = selectedNotes();
   closeLayer();
@@ -434,18 +508,35 @@ export async function boot() {
   if (get().memOnly) toast('Stockage indisponible : les notes seront perdues à la fermeture de la page.');
   get().notes.filter(n => n.atts.some(a => !a.blob)).forEach(n => updateNote(n, { atts: n.atts.map(attFromBackup).filter((a): a is NonNullable<typeof a> => !!a) }));
   handleLaunchUrl();
+  addEventListener('hashchange', handleLaunchUrl);   // a note link opened while the app is already here
   checkReminders();
   setInterval(checkReminders, CONFIG.reminderPollMs);
 }
 /** ?new=…, shortcuts and share-target hand-offs. */
 function handleLaunchUrl() {
+  const link = location.hash.match(/^#n=([\w-]+)$/);
+  if (link) { history.replaceState(null, '', location.pathname + location.search); return receiveLink(link[1]); }
   const q = new URLSearchParams(location.search), kind = q.get('new'), fields = { title: q.get('title') || '', text: q.get('text') || '', url: q.get('url') || '' };
   const files = q.has('share-files'), shared = fields.title || fields.text || fields.url;
   if (!kind && !files && !shared) return;
   history.replaceState(null, '', location.pathname);
   if (files) return sharedFiles(fields);
   if (shared) return importShared(fields);
-  if (kind === 'list') fromTemplate('list'); else if (kind === 'today') dailyNote(); else if (kind === 'search') openSearch(); else createAndOpen();
+  if (kind === 'list') fromTemplate('list'); else if (kind === 'today') dailyNote(); else if (kind === 'search') openSearch();
+  else if (kind === 'voice') toggleRecording(); else createAndOpen();
+}
+
+/** The installed app's icon badge: cards to review plus reminders still due today (recomputed after a pause in typing). */
+let badgeTimer = 0;
+export function updateBadge(notes: Note[]) {
+  const nav = navigator as Navigator & { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+  if (!nav.setAppBadge) return;
+  clearTimeout(badgeTimer);
+  badgeTimer = window.setTimeout(() => {
+    const end = new Date().setHours(23, 59, 59, 999), live = notes.filter(n => !n.deleted);
+    const count = live.reduce((t, n) => t + dueCards(n).length, 0) + live.filter(n => n.remind && !n.remindDone && n.remind <= end).length;
+    (count ? nav.setAppBadge!(count) : nav.clearAppBadge?.() ?? Promise.resolve()).catch(() => {});
+  }, 2000);
 }
 
 export const lastBackupLabel = (t?: number) => (t ? 'Dernière : ' + (isToday(t) ? 'aujourd’hui' : day(t)) : 'Jamais');

@@ -163,6 +163,37 @@ async function unzip(file: Blob) {
   }
   return entries;
 }
+/** Minimal ZIP writer, stored (photos and audio are already compressed; Markdown is small). UTF-8 names. */
+const CRC = Uint32Array.from({ length: 256 }, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
+const crc32 = (b: Uint8Array) => { let c = ~0; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return ~c >>> 0; };
+export async function zip(files: { path: string; data: Blob | string; date: number }[]) {
+  const enc = new TextEncoder(), parts: BlobPart[] = [], central: BlobPart[] = [];
+  let offset = 0, centralSize = 0;
+  for (const f of files) {
+    const data = typeof f.data === 'string' ? enc.encode(f.data) : new Uint8Array(await f.data.arrayBuffer()), name = enc.encode(f.path), d = new Date(f.date);
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const head = (sig: number, size: number, at: number) => {
+      const v = new DataView(new ArrayBuffer(size));
+      v.setUint32(0, sig, true);
+      const o = at;   // central headers carry "version made by" first, then the same fields as local ones
+      v.setUint16(o, 20, true); v.setUint16(o + 2, 0x0800, true); v.setUint16(o + 6, time, true); v.setUint16(o + 8, date, true);
+      v.setUint32(o + 10, crc, true); v.setUint32(o + 14, data.length, true); v.setUint32(o + 18, data.length, true); v.setUint16(o + 22, name.length, true);
+      return v;
+    };
+    const crc = crc32(data), local = head(0x04034b50, 30, 4), entry = head(0x02014b50, 46, 6);
+    entry.setUint16(4, 20, true);
+    entry.setUint32(42, offset, true);
+    parts.push(local.buffer, name, data);
+    central.push(entry.buffer, name);
+    offset += 30 + name.length + data.length;
+    centralSize += 46 + name.length;
+  }
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, centralSize, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
+}
+
 export async function epubToNotes(file: File) {
   const zip = await unzip(file), xml = (s: string) => new DOMParser().parseFromString(s, 'application/xml');
   const read = (path: string) => zip.get(path)?.() ?? Promise.reject(Error('missing ' + path));

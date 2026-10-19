@@ -346,6 +346,9 @@ body.layer-open:not(:has(.layer[data-anchored], .layer[data-inspector])) .editor
 }
 .fab svg { width: 28px; height: 28px; stroke-width: 2.25; }
 .fab[aria-expanded='true'] svg { rotate: 45deg; }
+#fab { touch-action: none; }   /* press-and-slide onto a Créer choice: the finger never scrolls the page */
+.layer[data-mode='create'] .tile.is-armed { transform: scale(.96); box-shadow: inset 0 0 0 2px var(--tone-ink); }
+.layer[data-mode='create'] .row.is-armed { background-color: var(--color-fill-strong); }
 .fab svg { transition: rotate var(--base) var(--ease); }
 .fab.is-quiet { background: var(--glass-strong); color: var(--color-text); box-shadow: var(--glass-shadow); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border: .5px solid var(--glass-edge); }
 .fab.is-quiet svg { width: 22px; height: 22px; stroke-width: 2; }
@@ -467,7 +470,7 @@ body[data-hand='left'] :is(.layer, .sheet) { transform-origin: bottom left; }
 .segmented button:active { transform: scale(.96); }
 
 /* Switch: knob slides, track fills */
-.option[role='switch'] > span:first-child { display: grid; text-align: start; }
+.option > span:has(> .option-note) { display: grid; text-align: start; }   /* a label with a note under it */
 .option-note { font-size: var(--text-xs); color: var(--color-text-faint); }
 .switch {   /* squared like every control (÷3); the knob carries its state: − off, ✓ on */
   --h: 31px; position: relative; flex: none; width: 51px; height: var(--h); border-radius: calc(var(--h) / var(--radius-ratio));
@@ -648,6 +651,8 @@ body.is-editing .editor-text { scroll-padding-bottom: 120px; }
 .att-pdf-text { flex: 1; min-width: 0; display: grid; }
 .att-remove { position: absolute; top: 8px; inset-inline-end: 8px; display: grid; place-items: center; --h: 32px; width: var(--h); height: var(--h); border-radius: calc(var(--h) / var(--radius-ratio)); background: #0007; color: #fff; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .att-remove svg { width: 16px; height: 16px; }
+.att-image .att-live { position: absolute; inset-inline-start: 8px; bottom: 8px; }   /* Live text, like the photo apps: bottom corner of the picture */
+.att-live:disabled { opacity: .7; }
 .player { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 12px; padding: var(--space-3) 52px var(--space-3) var(--space-3); }
 .player-play { display: grid; place-items: center; --h: 44px; width: var(--h); height: var(--h); border-radius: calc(var(--h) / var(--radius-ratio)); background: var(--color-accent); color: var(--color-on-accent); }
 .player-time { font-size: var(--text-xs); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }

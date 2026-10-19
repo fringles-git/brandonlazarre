@@ -10,7 +10,7 @@ import {
   menuRestore, menuTrash, moveSelection, moveTo, openLayer, openPicker, patchLayer, resetPin, restoreVersion,
   setPref, submitPin, toggleNewFolder, uncheckList, editorRefs,
 } from '../actions';
-import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareOne, shareSelection, startStudy } from '../features';
+import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareLinkOne, shareOne, shareSelection, startStudy } from '../features';
 import { caretTop, day, dayOrTime, dayTime, finePointer, plural, reducedMotion, wide } from '../utils';
 import { InlineForm, Layer, NewFolder, Option, Row } from './kit';
 import { Icon } from './icons';
@@ -98,6 +98,7 @@ function NoteMenu() {
       <Row icon="folder" label="Déplacer" trailing={n.folder || 'Sans dossier'} onClick={openPicker} />
       {inEditor && <Row icon="bell" label="Rappel" trailing={remind ? dayTime(n.remind!) : undefined} onClick={() => openLayer('remind')} />}
       <Row icon="share" label="Partager" onClick={() => { closeLayer(); shareOne(n); }} />
+      <Row icon="link" label="Envoyer un lien" trailing="sans serveur" onClick={() => { closeLayer(); shareLinkOne(n); }} />
       <Row icon="lock" label={n.locked ? 'Ne plus masquer' : 'Masquer'} onClick={menuHide} />
       {inEditor && <><hr /><NoteTools note={n} /></>}
       <hr />

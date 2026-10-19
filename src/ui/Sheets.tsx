@@ -9,7 +9,7 @@ import { urlOf } from '../media';
 import { folderColor, noteById, readableNotes, tabFolder, tabLabel, tabNotes, useStore } from '../store';
 import { closeSheet, open, openLink, openSheet, runToastAction } from '../actions';
 import {
-  answer, deleteCard, exportBackup, exportMarkdown, exportSlides, install, lastBackupLabel, openGuide, openNews, printTab,
+  answer, deleteCard, exportBackup, exportMarkdown, exportSlides, exportVault, install, lastBackupLabel, openGuide, openNews, printTab,
   retryMissed, reveal, startStudy, startTour, studyNotes, toggleOcr, openMap,
 } from '../features';
 import { bytes, clock, day, dayTime, fmt, plural, time } from '../utils';
@@ -218,6 +218,7 @@ function Settings() {
         <h4>Sauvegarde</h4>
         <button className="option" onClick={exportBackup}><span>Exporter les notes</span><small>{lastBackupLabel(s.lastBackup)}</small></button>
         <button className="option" onClick={() => pickFile('backup')}>Importer une sauvegarde</button>
+        <button className="option" onClick={exportVault}><span>Exporter en Markdown (.zip)<span className="option-note">Dossiers et pièces jointes, pour Obsidian et les autres apps</span></span></button>
         <h4>Aide</h4>
         <button className="option" onClick={startTour}>Visite guidée</button>
         <button className="option" onClick={openGuide}>Guide d’utilisation</button>

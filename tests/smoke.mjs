@@ -11,6 +11,7 @@ import { preview } from 'vite';
 import { chromium } from 'playwright-core';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { PNG } from 'pngjs';
 import pixelmatch from 'pixelmatch';
 
@@ -25,8 +26,8 @@ const browser = await chromium.launch({
 });
 
 const results = [];
-async function check(name, run, { viewport = { width: 390, height: 844 }, colorScheme = 'light' } = {}) {
-  const ctx = await browser.newContext({ viewport, colorScheme, hasTouch: true, reducedMotion: 'reduce', locale: 'fr-FR', timezoneId: 'Europe/Paris' });
+async function check(name, run, { viewport = { width: 390, height: 844 }, colorScheme = 'light', permissions = [] } = {}) {
+  const ctx = await browser.newContext({ viewport, colorScheme, permissions, hasTouch: true, reducedMotion: 'reduce', locale: 'fr-FR', timezoneId: 'Europe/Paris' });
   const page = await ctx.newPage(), errors = [];
   await page.clock.setFixedTime(new Date('2026-10-19T10:00:00+02:00'));   // same dates on every run, for the shots
   page.setDefaultTimeout(20000);
@@ -35,6 +36,7 @@ async function check(name, run, { viewport = { width: 390, height: 844 }, colorS
   try {
     await page.goto(APP);
     await page.getByRole('button', { name: 'Passer', exact: true }).click();
+    await page.waitForSelector('.sheet.welcome', { state: 'detached' });   // nothing left over the screen
     await page.waitForSelector('#note-list .card');
     await run(page);
     if (errors.length) throw Error('console: ' + errors.join(' | '));
@@ -46,11 +48,12 @@ async function check(name, run, { viewport = { width: 390, height: 844 }, colorS
 }
 const expect = (ok, what) => { if (!ok) throw Error(what); };
 /** Compares the screen with tests/shots/<name>.png; the first run (or --update-shots) writes the reference. */
-async function shot(page, name, mask = []) {
+async function shot(page, name, hide = '') {
   if (process.env.SHOTS === 'off') return;
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(400);
-  const now = await page.screenshot({ animations: 'disabled', caret: 'hide', mask: mask.map(m => page.locator(m)) }), file = SHOTS + name + '.png';
+  if (hide) await page.addStyleTag({ content: hide + ' { visibility: hidden !important; }' });
+  const now = await page.screenshot({ animations: 'disabled', caret: 'hide' }), file = SHOTS + name + '.png';
   if (UPDATE || !fs.existsSync(file)) {
     fs.mkdirSync(SHOTS, { recursive: true });
     fs.writeFileSync(file, now);
@@ -87,9 +90,50 @@ await check('create: + keeps the dock, opens Créer, a note is written and liste
   expect(await page.getAttribute('#fab', 'aria-expanded') === 'true', '+ shows as ✕');
   await page.click('#create-note');
   await page.waitForSelector('.editor.open');
+  await page.clock.setFixedTime(new Date('2026-10-19T10:05:00+02:00'));   // written a few minutes after it was made
   await page.fill('.editor-title', 'Note de contrôle');
   await page.click('.editor-dock .fab');
   await page.waitForSelector('#note-list .card-open:has-text("Note de contrôle")');
+  await page.waitForSelector('.widget[data-tone="yellow"]:has-text("Reprendre"):has-text("Note de contrôle")');
+});
+
+await check('slide from +: press, slide onto Note, release — the note opens', async page => {
+  const fab = await page.locator('#fab').boundingBox();
+  await page.mouse.move(fab.x + fab.width / 2, fab.y + fab.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(fab.x + fab.width / 2 - 20, fab.y - 20, { steps: 4 });
+  await page.waitForSelector('.layer[data-mode="create"] #create-note');
+  const tile = await page.locator('#create-note').boundingBox();
+  await page.mouse.move(tile.x + tile.width / 2, tile.y + tile.height / 2, { steps: 6 });
+  expect(await page.locator('#create-note.is-armed').count() === 1, 'the tile under the finger is armed');
+  await page.mouse.up();
+  await page.waitForSelector('.editor.open');
+});
+
+await check('link: a note travels in a link and comes back as a note', async page => {
+  await openNote(page, 'Bienvenue');
+  await page.click('#note-more');
+  await page.getByRole('button', { name: /Envoyer un lien/ }).click();
+  await page.waitForSelector('.toast:has-text("Lien copié")');
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  expect(/#n=[\w-]+$/.test(link), 'link with the note in the fragment: ' + link.slice(0, 60));
+  await page.click('.editor-dock .fab');
+  await page.goto(link);
+  await page.waitForSelector('.toast:has-text("Note reçue")');
+  expect(await page.inputValue('.editor-title') === 'Bienvenue', 'the received note is open');
+}, { permissions: ['clipboard-read', 'clipboard-write'] });
+
+await check('export: every note as Markdown files in a valid .zip', async page => {
+  await page.click('#nav-settings');
+  const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Exporter en Markdown/ }).click()]);
+  const path = await file.path(), list = execFileSync('unzip', ['-l', path]).toString();
+  execFileSync('unzip', ['-tq', path]);   // CRCs and structure
+  expect(list.includes('Notes/Bienvenue.md') && list.includes('Notes/Comment utiliser.md'), 'files in the archive: ' + list);
+});
+
+await check('shortcut: ?new=voice starts a voice note (or says why it cannot)', async page => {
+  await page.goto(APP + '?new=voice');
+  await page.waitForSelector('body.is-recording, .toast:has-text("icro"), .toast:has-text("Enregistrement")');
 });
 
 await check('search: finds a word inside a note', async page => {
@@ -154,7 +198,7 @@ await check('looks: home, Créer and Réglages on a phone', async page => {
   await page.keyboard.press('Escape');
   await page.click('#nav-settings');
   await page.waitForSelector('.sheet[data-mode="settings"]');
-  await shot(page, 'phone-settings', ['.option:has-text("Quoi de neuf") small']);   // the version changes every release
+  await shot(page, 'phone-settings', '.sheet[data-mode="settings"] .option small');   // the version changes every release
 });
 
 await check('looks: home in dark', async page => {
@@ -175,6 +219,15 @@ await check('photo text: a photo is read on the device and its words are stored'
   let text = '';
   while (Date.now() - t0 < 90000 && !/Troyes/i.test(text)) { await page.waitForTimeout(2000); text = await idbTexts(page); }
   expect(/Troyes/i.test(text), 'recognised text, got: ' + JSON.stringify(text));
+});
+
+await check('live text: with the setting off, one tap reads a photo and adds its words to the note', async page => {
+  await page.setInputFiles('#image-input', photo);
+  await page.waitForSelector('.editor.open .att-live');
+  await page.click('.att-live');
+  await page.waitForSelector('.toast:has-text("Texte ajouté")', { timeout: 90000 });
+  const body = await page.evaluate(() => document.querySelector('textarea.editor-text').value);
+  expect(/Troyes/i.test(body), 'the photo\'s words are in the note: ' + body.slice(0, 80));
 });
 
 await check('dark theme: dark ground from the first frame', async page => {

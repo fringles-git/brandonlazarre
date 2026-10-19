@@ -8,9 +8,9 @@ import { urlOf } from '../media';
 import { openNote, readableNotes, useStore } from '../store';
 import {
   applyFormat, applyTemplate, backToReading, caretFormat, closeEditor, editAt, editField, editorRefs, extractSelection, FORMAT_TOOLS, onEditorKey,
-  open, openImport, openLayer, openLink, openNoteMenu, openPicker, patchEditor, removeAtt, setTab, toggleFormatBar, toggleOpenCheck,
+  open, openImport, openLayer, openLink, openNoteMenu, openPicker, patchEditor, removeAtt, setTab, toast, toggleFormatBar, toggleOpenCheck,
 } from '../actions';
-import { audioRate, cycleRate, editorAudios, openMap, pauseOthers, startStudy, toCalendar } from '../features';
+import { addAttText, attText, audioRate, cycleRate, editorAudios, openMap, pauseOthers, startStudy, toCalendar } from '../features';
 import { clock, dayOrTime, eventDate, finePointer, goUrl, isToday, openUrl, plural, rate } from '../utils';
 import { Chip, FolderTag, Formatted } from './kit';
 import { Icon } from './icons';
@@ -100,6 +100,21 @@ function Player({ att, name }: { att: Attachment; name: string }) {
   );
 }
 
+/** Live text: the words of a photo or PDF go into the note in one tap (read first if needed). */
+function LiveText({ note, att, quiet }: { note: Note; att: Attachment; quiet?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  if (att.text === '' || note.deleted) return null;   // read, and nothing in it
+  const run = async () => {
+    setBusy(true);
+    try { addAttText(await attText(note.id, att)); } catch { toast('Lecture impossible pour ce fichier.'); } finally { setBusy(false); }
+  };
+  return (
+    <button className={quiet ? 'text-btn att-live' : 'chip glass att-live'} disabled={busy} onClick={run} aria-label="Ajouter le texte de ce fichier à la note">
+      {!quiet && <Icon name="liveText" />}{busy ? 'Lecture…' : 'Ajouter le texte'}
+    </button>
+  );
+}
+
 function Attachments({ note }: { note: Note }) {
   const many = note.atts.length > 1, nth = (i: number) => (many ? ' ' + (i + 1) : '');
   return (
@@ -110,9 +125,10 @@ function Attachments({ note }: { note: Note }) {
             : a.type === 'pdf' ? <>
               <Icon name="doc" />
               <span className="att-pdf-text"><span className="pdf-name">{a.name || 'Document PDF'}</span><span className="pdf-meta">{pdfMeta(a)}</span></span>
+              <LiveText note={note} att={a} quiet />
               <button className="text-btn" onClick={openUrl(urlOf(a))}>Ouvrir</button>
             </>
-              : <img alt={(note.title || 'Image jointe') + nth(i)} src={urlOf(a)} />}
+              : <><img alt={(note.title || 'Image jointe') + nth(i)} src={urlOf(a)} /><LiveText note={note} att={a} /></>}
           <button className="att-remove" onClick={() => removeAtt(i)} aria-label={'Retirer la pièce jointe' + nth(i)}><Icon name="close" /></button>
         </div>
       ))}

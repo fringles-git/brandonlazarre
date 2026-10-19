@@ -8,7 +8,7 @@ import { CONFIG } from './config';
 import { releaseUrls } from './media';
 import { set, useStore, type BeforeInstallPromptEvent } from './store';
 import { checkTab, toast } from './actions';
-import { analyse, boot, persistStorage } from './features';
+import { analyse, boot, persistStorage, updateBadge } from './features';
 import { bindGestures } from './gestures';
 import { Dock } from './ui/Dock';
 import { Editor } from './ui/Editor';
@@ -69,7 +69,7 @@ function useDocumentState() {
     body.classList.toggle('is-recording', s.recording);
     body.classList.toggle('layer-open', s.layer);
   });
-  useEffect(() => { checkTab(); releaseUrls(s.notes); }, [s.notes]);
+  useEffect(() => { checkTab(); releaseUrls(s.notes); updateBadge(s.notes); }, [s.notes]);
 }
 
 function App() {

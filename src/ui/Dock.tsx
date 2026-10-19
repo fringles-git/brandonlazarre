@@ -1,21 +1,63 @@
 /** The bottom of the screen, within thumb reach: navigation island + the + button, the in-dock search, selection and recording bars. */
 import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { SEARCH_KINDS, KIND_ICON, KIND_TONE } from '../config';
-import { filterNotes, inTrash, KIND_TEST, tabLabel, useStore, visibleNotes } from '../store';
+import { CONFIG, SEARCH_KINDS, KIND_ICON, KIND_TONE } from '../config';
+import { filterNotes, get, inTrash, KIND_TEST, tabLabel, useStore, visibleNotes } from '../store';
 import {
   allSelected, clearRecents, closeSearch, deleteSelection, goHome, endSelecting, hideSelection, openSearch, pinSelection,
   restoreSelection, saveCollection, selectAll, setQuery, toggleKind, toggleLayer, goLibrary, toggleSettings,
 } from '../actions';
 import { cancelRecording, stopRecording } from '../features';
-import { clock, plural } from '../utils';
+import { clock, haptic, plural } from '../utils';
 import { Icon } from './icons';
 
-/** + opens the Create sheet: note, voice, import. */
+/** + opens Créer. Or, in one gesture: press (or hold), slide onto a choice, release — it is made. */
 function Fab() {
   const open = useStore(s => s.layer.mode === 'create');
+  const drag = useRef<{ x: number; y: number; on: boolean; timer: number; hit: HTMLElement | null } | null>(null), swallow = useRef(false);
+  const start = () => {
+    const d = drag.current;
+    if (!d || d.on) return;
+    d.on = true;
+    if (get().layer.mode !== 'create') toggleLayer('create');
+    haptic('open');
+  };
+  const arm = (x: number, y: number) => {
+    const d = drag.current!, hit = [...document.querySelectorAll<HTMLElement>('.layer[data-mode="create"] :is(.tile, .row)')].find(t => {
+      const r = t.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }) || null;
+    if (hit === d.hit) return;
+    d.hit?.classList.remove('is-armed');
+    hit?.classList.add('is-armed');
+    if (hit) haptic('threshold');
+    d.hit = hit;
+  };
+  const end = (commit: boolean) => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    clearTimeout(d.timer);
+    d.hit?.classList.remove('is-armed');
+    if (!d.on) return;
+    swallow.current = true;   // the click that follows a slide is not a tap
+    if (commit) d.hit?.click();
+  };
   return (
-    <button className="fab" id="fab" aria-label="Créer : note, vocal, import" aria-haspopup="dialog" aria-expanded={open} onClick={() => toggleLayer('create')}>
+    <button className="fab" id="fab" aria-label="Créer : note, vocal, import" aria-haspopup="dialog" aria-expanded={open}
+      onPointerDown={e => {
+        if (e.button) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        drag.current = { x: e.clientX, y: e.clientY, on: false, hit: null, timer: window.setTimeout(start, CONFIG.holdMs) };
+      }}
+      onPointerMove={e => {
+        const d = drag.current;
+        if (!d) return;
+        if (!d.on && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) { clearTimeout(d.timer); start(); }
+        if (d.on) arm(e.clientX, e.clientY);
+      }}
+      onPointerUp={() => end(true)} onPointerCancel={() => end(false)}
+      onClick={() => { if (swallow.current) swallow.current = false; else toggleLayer('create'); }}>
       <Icon name="plus" />
     </button>
   );
