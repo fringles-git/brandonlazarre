@@ -108,6 +108,15 @@ const RELEASES: Omit<Release, 'version'>[] = [
   {
     date: '2026-10-19',
     changes: {
+      fix: [
+        'Dans la Bibliothèque, « Toutes les notes » ne paraît plus choisie quand rien n’est filtré',
+        'À la première visite, l’app ne se recharge plus d’elle-même en se préparant pour le hors-ligne',
+      ],
+    },
+  },
+  {
+    date: '2026-10-19',
+    changes: {
       new: [
         'Sur tablette, Plan et Historique s’ouvrent à côté de la note sans la couvrir : on continue d’écrire, le plan reste ouvert',
         'Clic droit sur une note, à la souris : son menu',

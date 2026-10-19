@@ -26,15 +26,16 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || !isSecureContext || import.meta.env.DEV) return;
   navigator.serviceWorker.register(new URL('sw.js', location.href).href, { updateViaCache: 'none' }).then(reg => {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
-    const offer = (w: ServiceWorker) => toast('Nouvelle version disponible.', () => w.postMessage('skip-waiting'), 'Recharger', 'new');
+    const offer = (w: ServiceWorker) => toast('Nouvelle version disponible.', () => { swap = true; w.postMessage('skip-waiting'); }, 'Recharger', 'new');
     if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const w = reg.installing!;
       w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w); });
     });
   }).catch(() => {});
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
+  // Reload only for an update the user accepted — never when the very first worker takes control (first visit)
+  let swap = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (swap) { swap = false; location.reload(); } });
 }
 
 function useInstall() {

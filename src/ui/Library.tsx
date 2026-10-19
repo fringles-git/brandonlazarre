@@ -61,7 +61,7 @@ export function Library() {
   live.forEach(n => tagsOf(n).forEach(t => tags.set(t, (tags.get(t) || 0) + 1)));
   const top = Math.max(1, ...tags.values());
   const tile = (t: string, label = tabLabel(t), count: number | string = countIn(state, t), onClick = () => setTab(t)) => (
-    <button key={t} className="lib-tile" data-tone={KIND_TONE[t]} aria-pressed={s.tab === t} onClick={onClick}>
+    <button key={t} className="lib-tile" data-tone={KIND_TONE[t]} aria-pressed={t !== 'all' && s.tab === t} onClick={onClick}>
       <Icon name={KIND_ICON[t] || 'graph'} />
       <b>{shown(count) ? count : ''}</b>
       <span>{label}</span>
