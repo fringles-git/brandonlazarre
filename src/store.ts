@@ -111,7 +111,7 @@ export const tabLabel = (t: string) => TAB_LABEL[t] || (t[0] === 't' ? '#' : '')
 export const tabFolder = (t: string) => (t.startsWith('f:') ? t.slice(2) : '');
 export const findCollection = (t: string, list: Collection[] = []) => (t.startsWith('c:') ? list.find(c => c.name === t.slice(2)) : undefined);
 
-interface Filter { tab: string; by: string; query: string; kind?: Kind | null; unlocked: boolean; collections?: Collection[] }
+interface Filter { tab: string; query: string; kind?: Kind | null; unlocked: boolean; collections?: Collection[] }
 
 function inTab(n: Note, tab: string) {
   if (tab === 'trash') return !!n.deleted;
@@ -127,10 +127,10 @@ function inTab(n: Note, tab: string) {
 const searchable = (n: Note, unlocked: boolean) =>
   n.locked && !unlocked ? n.title : n.title + ' ' + n.body + ' ' + n.atts.filter(a => a.text).map(a => a.text).join('\n');
 
-export function filterNotes(notes: Note[], { tab, by, query, kind = null, unlocked, collections }: Filter) {
+export function filterNotes(notes: Note[], { tab, query, kind = null, unlocked, collections }: Filter) {
   const c = findCollection(tab, collections);
   const passes = (c ? [c, { tab: 'all', query, kind }] : [{ tab, query, kind }]).map(p => ({ ...p, query: p.query.trim().toLowerCase() }));
-  return notes.filter(n => (by === 'all' || n.by === by) && passes.every(p =>
+  return notes.filter(n => passes.every(p =>
     inTab(n, p.tab) && (!p.query || searchable(n, unlocked).toLowerCase().includes(p.query)) && (!p.kind || KIND_TEST[p.kind as Kind](n))));
 }
 
@@ -141,7 +141,7 @@ export const sortNotes = (notes: Note[], { sort, dir }: Pick<Prefs, 'sort' | 'di
 };
 
 const visibleMemo = memoArgs((notes: Note[], prefs: Prefs, query: string, kind: Kind | null, unlocked: boolean) =>
-  sortNotes(filterNotes(notes, { tab: prefs.tab, by: prefs.by, query, kind, unlocked, collections: prefs.collections }), prefs));
+  sortNotes(filterNotes(notes, { tab: prefs.tab, query, kind, unlocked, collections: prefs.collections }), prefs));
 /** Notes shown in the list right now. */
 export const visibleNotes = (s: State) => visibleMemo(s.notes, s.prefs, s.query, s.searchKind, s.hiddenUnlocked);
 
@@ -150,11 +150,11 @@ const readableMemo = memoArgs((notes: Note[], unlocked: boolean) => notes.filter
 export const readableNotes = (s: State) => readableMemo(s.notes, s.hiddenUnlocked);
 
 export const countIn = (s: State, tab: string) =>
-  filterNotes(s.notes, { tab, by: 'all', query: '', unlocked: s.hiddenUnlocked, collections: s.prefs.collections }).length;
+  filterNotes(s.notes, { tab, query: '', unlocked: s.hiddenUnlocked, collections: s.prefs.collections }).length;
 
 /** All notes of the current tab, unfiltered by search (exports, overview). */
 export const tabNotes = (s: State = get()) =>
-  sortNotes(filterNotes(s.notes, { tab: s.prefs.tab, by: 'all', query: '', unlocked: s.hiddenUnlocked, collections: s.prefs.collections }), s.prefs);
+  sortNotes(filterNotes(s.notes, { tab: s.prefs.tab, query: '', unlocked: s.hiddenUnlocked, collections: s.prefs.collections }), s.prefs);
 
 export const openNote = (s: State) => (s.editor.id === null ? null : s.notes.find(n => n.id === s.editor.id) || null);
 export const menuNote = (s: State) => (s.menuNote === null ? null : s.notes.find(n => n.id === s.menuNote) || null);

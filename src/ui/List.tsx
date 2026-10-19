@@ -6,7 +6,7 @@ import { CONFIG } from '../config';
 import { checkStats, dueCards, entities, parseCheck, plainLine, plainText, snippet } from '../markdown';
 import { firstAtt, urlOf } from '../media';
 import { countIn, folderColor, inTrash, readableNotes, tabFolder, tabLabel, useStore, visibleNotes } from '../store';
-import { changePin, clearByFilter, setPref, emptyTrash, goHome, goLibrary, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
+import { changePin, setPref, emptyTrash, goHome, goLibrary, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
 import { backupDue, currentHint, dismissHint, exportBackup, playCard, startStudy } from '../features';
 import { consumeClick } from '../gestures';
 import { bytes, clock, day, daysAgo, dayTime, eventDate, finePointer, fullDay, plural, relativeDay } from '../utils';
@@ -41,15 +41,13 @@ export function Header() {
 
 export function InfoBar() {
   const s = useStore(useShallow(s => ({
-    by: s.prefs.by, tab: s.prefs.tab, lastBackup: s.prefs.lastBackup, selecting: s.selecting, query: s.query, unlocked: s.hiddenUnlocked,
+    tab: s.prefs.tab, lastBackup: s.prefs.lastBackup, selecting: s.selecting, query: s.query, unlocked: s.hiddenUnlocked,
     trashCount: inTrash(s) ? countIn(s, 'trash') : 0,
     hint: s.prefs.tab === 'all' && !s.selecting && !s.searchOpen ? currentHint(s.prefs, finePointer()) : null,
     ios: s.install.ios && !s.install.standalone && !s.prefs.iosInstallDismissed && !s.memOnly && s.prefs.tab === 'all',
     backup: backupDue(s) && s.prefs.tab === 'all' && !s.selecting && !s.searchOpen,
   })));
-  const by = s.by === 'me' ? 'Créé par moi' : 'Créé avec l’IA';
   const pills = [
-    s.by !== 'all' && <button key="by" className="pill" onClick={clearByFilter} aria-label={'Retirer le filtre ' + by}>Filtre : {by}<Icon name="close" /></button>,
     s.trashCount > 0 && <button key="trash" className="pill danger" onClick={emptyTrash}>Vider la corbeille ({s.trashCount})</button>,
     /^[ftc]:/.test(s.tab) && !s.selecting && !s.query.trim() && <button key="ov" className="pill" onClick={() => openSheet('overview')}>Vue d’ensemble</button>,
     s.backup && <button key="backup" className="pill" onClick={exportBackup}>
@@ -223,7 +221,7 @@ const Card = memo(function Card({ note, inShelf, grip, selected, selecting, isOp
 });
 
 function Empty() {
-  const filtered = useStore(s => !!s.query.trim() || !!s.searchKind || s.prefs.by !== 'all'), trash = useStore(inTrash);
+  const filtered = useStore(s => !!s.query.trim() || !!s.searchKind), trash = useStore(inTrash);
   return <div className="empty">{filtered ? 'Aucune note ne correspond.' : trash ? 'Corbeille vide.' : 'Aucune note. Touchez + pour écrire la première.'}</div>;
 }
 
@@ -263,7 +261,7 @@ export function NoteList({ onShown }: { onShown: (notes: Note[]) => void }) {
     unlocked: s.hiddenUnlocked, colors: s.folderColors, trash: inTrash(s), searching: s.searchOpen,
   })));
   const ref = useRef<HTMLElement>(null), more = useRef<HTMLButtonElement>(null);
-  const key = [s.prefs.tab, s.prefs.by, s.prefs.sort, s.prefs.dir, s.query, s.kind].join('|');
+  const key = [s.prefs.tab, s.prefs.sort, s.prefs.dir, s.query, s.kind].join('|');
   const [page, setPage] = useState({ key, limit: CONFIG.pageSize as number });
   const limit = page.key === key ? page.limit : CONFIG.pageSize, shown = useMemo(() => notes.slice(0, limit), [notes, limit]);
   const left = notes.length - shown.length, next = () => setPage({ key, limit: limit + CONFIG.pageSize });

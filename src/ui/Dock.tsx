@@ -51,14 +51,14 @@ function MainDock() {
 
 function SearchDock() {
   const s = useStore(useShallow(s => ({
-    notes: s.notes, tab: s.prefs.tab, by: s.prefs.by, query: s.query, kind: s.searchKind, unlocked: s.hiddenUnlocked,
+    notes: s.notes, tab: s.prefs.tab, query: s.query, kind: s.searchKind, unlocked: s.hiddenUnlocked,
     recents: s.prefs.recentSearches, collections: s.prefs.collections,
   })));
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => { input.current?.focus({ preventScroll: true }); }, []);
   const kinds = SEARCH_KINDS.filter(k => {
     if (s.kind === k) return true;
-    const pool = filterNotes(s.notes, { tab: s.tab, by: s.by, query: s.query, unlocked: s.unlocked, collections: s.collections });
+    const pool = filterNotes(s.notes, { tab: s.tab, query: s.query, unlocked: s.unlocked, collections: s.collections });
     return pool.some(KIND_TEST[k]);
   });
   const where = s.tab === 'all' ? 'Notes' : tabLabel(s.tab), recents = s.query.trim() ? [] : s.recents || [];

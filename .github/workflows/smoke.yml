@@ -1,0 +1,22 @@
+# Notes v3 — the smoke test on every push of the source: build, then the 11 key paths in a real Chromium.
+name: Smoke
+
+on:
+  push:
+    branches: [notes-v3, notes-v3-adaptive]
+  pull_request:
+    branches: [notes-v3]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - run: npm run smoke

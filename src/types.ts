@@ -42,7 +42,6 @@ export interface Prefs {
   view: 'cards' | 'list';
   sort: 'updated' | 'created';
   dir: 'desc' | 'asc';
-  by: 'all' | 'me' | 'ai';
   theme: 'auto' | 'light' | 'dark';
   hand: 'right' | 'left';
   tint: 'off' | 'on';

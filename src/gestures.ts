@@ -244,6 +244,12 @@ function onKey(e: KeyboardEvent) {
   if (k === 'n') { e.preventDefault(); createAndOpen(); }
   else if (k === 'l') { e.preventDefault(); fromTemplate('list'); }
   else if (k === 'd') { e.preventDefault(); dailyNote(); }
+  else if (k === 's' && s.page === 'notes') {   // the keyboard twin of a long-press; Space then picks cards, Escape ends
+    e.preventDefault();
+    if (s.selecting) return endSelecting();
+    const card = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('#note-list .card');
+    startSelecting(card ? +card.dataset.id! : undefined);
+  }
 }
 
 function onPaste(e: ClipboardEvent) {

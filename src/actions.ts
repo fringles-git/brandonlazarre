@@ -94,7 +94,6 @@ export function createNote(fields: Partial<Note> = {}) {
   };
   set(s => ({ notes: [n, ...s.notes] }));
   persistQuiet(n);
-  if (prefs.by !== 'all' && prefs.by !== n.by) setPref('by', 'all');
   return n;
 }
 export function createAndOpen(fields: Partial<Note> = {}, heavy = false) {
@@ -710,7 +709,6 @@ export function deleteCollection(name: string) {
   checkTab();
   toast('Collection supprimée.', () => setPref('collections', before));
 }
-export const clearByFilter = () => setPref('by', 'all');
 export function emptyTrash() {
   const t = get().notes.filter(n => n.deleted);
   if (t.length) deleteForever(t);

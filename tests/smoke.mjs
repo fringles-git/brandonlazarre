@@ -1,7 +1,7 @@
 /**
  * Smoke test of the built app, run before every push: `npm run smoke` (builds, serves dist/, drives a real Chromium).
- * Covers the paths that must never break: first launch, create, search, Library page, photo text, dark theme,
- * menus that keep the dock, the phone Plan closing on a tap, the tablet inspector beside the note.
+ * Covers the paths that must never break: first launch, create, search, Library page, left hand, Quoi de neuf,
+ * keyboard selection with undo, photo text, dark theme, the phone Plan closing on a tap, the tablet inspector.
  * Browser: Playwright's Chromium, or CHROMIUM_PATH (+ optional CHROMIUM_ARGS) for any other build.
  */
 import { preview } from 'vite';
@@ -77,6 +77,31 @@ await check('library: a page with the dock, a folder opens and comes back', asyn
   await page.waitForSelector('#page-title:has-text("Idées")');
   await page.click('.back-chip');
   await page.waitForSelector('#library');
+});
+
+await check('left hand: Gaucher puts the + on the left of the navigation', async page => {
+  await page.click('#nav-settings');
+  await page.getByRole('radio', { name: 'Gaucher', exact: true }).click();
+  await page.click('#sheet-close');
+  const fab = await page.locator('#fab').boundingBox(), nav = await page.locator('#nav-island').boundingBox();
+  expect(fab.x < nav.x, `+ at ${fab.x}, navigation at ${nav.x}`);
+});
+
+await check('Quoi de neuf: reopens from Réglages with the installed version', async page => {
+  await page.click('#nav-settings');
+  await page.getByRole('button', { name: /Quoi de neuf/ }).click();
+  await page.waitForSelector('.sheet[data-mode="news"] .version-pill.is-new');
+});
+
+await check('select with S, delete, then undo', async page => {
+  await page.focus('#note-list .card-open');
+  await page.keyboard.press('s');
+  await page.waitForSelector('body.is-selecting');
+  expect(await page.locator('.card-open[aria-pressed="true"]').count() === 1, 'the focused note is selected');
+  await page.getByRole('button', { name: 'Supprimer la sélection' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#note-list .card').length === 1);
+  await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#note-list .card').length === 2);
 });
 
 await check('photo text: a photo is read on the device and its words are stored', async page => {

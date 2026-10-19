@@ -117,7 +117,7 @@ export function InlineForm({ onSubmit, button, autoFocus = true, inputProps }: {
 
 export const NewFolder = () => <InlineForm onSubmit={submitFolder} button="Créer le dossier" inputProps={{ placeholder: 'Nom du dossier', 'aria-label': 'Nom du dossier' }} />;
 
-type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'sort' | 'dir' | 'by';
+type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'sort' | 'dir';
 export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K; label: string; options: [Prefs[K], ReactNode][] }) {
   const value = useStore(s => s.prefs[pref]), at = Math.max(0, options.findIndex(([v]) => v === value));
   return (

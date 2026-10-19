@@ -94,13 +94,14 @@ mark { background: var(--color-highlight); color: inherit; border-radius: 3px; p
 .chip.is-quiet { color: var(--color-text-muted); }
 .chip.is-backlink { font-style: italic; }
 
-.pill {
-  --h: 34px;
+.pill {   /* quiet at 34px, but touched at 44px like the card's ⋮ */
+  --h: 34px; position: relative;
   min-height: var(--h); padding: 6px 14px;
   border-radius: calc(var(--h) / var(--radius-ratio));
   background: var(--color-card); border: .5px solid var(--color-line);
   font-size: var(--text-sm); color: var(--color-text-muted); text-align: start;
 }
+.pill::after { content: ''; position: absolute; inset: -5px -4px; }
 .pill.danger { color: var(--color-danger); }
 .pill:has(svg) { display: inline-flex; align-items: center; gap: 6px; }
 .pill svg { width: 14px; height: 14px; }
@@ -141,7 +142,7 @@ html.is-pulling .page { transform: translateY(calc(var(--pull) * 40px)); }
 html.pull-armed .pull-hint { background: var(--color-accent); color: var(--color-on-accent); }
 html:not(.is-pulling) .page { transition: transform var(--base) var(--ease); }
 
-.info-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-1) 0 var(--space-4); }
+.info-bar { display: flex; flex-wrap: wrap; gap: 10px var(--space-2); margin: var(--space-1) 0 var(--space-4); }
 
 /* ---------- Note list ---------- */
 .note-list { display: flex; flex-direction: column; gap: 10px; }

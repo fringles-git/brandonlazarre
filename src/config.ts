@@ -29,7 +29,7 @@ export const DEFAULT_FOLDERS = ['Idées', 'Travail', 'Personnel'];
 export const FOLDER_COLORS = ['bleu', 'orange', 'vert', 'violet', 'rose', 'turquoise', 'brun', 'gris'];
 
 export const DEFAULT_PREFS: Prefs = {
-  tab: 'all', view: 'cards', sort: 'updated', dir: 'desc', by: 'all',
+  tab: 'all', view: 'cards', sort: 'updated', dir: 'desc',
   theme: 'auto', hand: 'right', tint: 'off',
 };
 
@@ -73,6 +73,7 @@ export const TEMPLATES = [
 export const HINTS: { id: string; text: string; fine?: boolean }[] = [
   { id: 'pull', text: 'Tirez la liste vers le bas pour chercher' },
   { id: 'select', text: 'Appui long sur une note pour en sélectionner plusieurs' },
+  { id: 'select-key', text: 'Touche S pour sélectionner plusieurs notes', fine: true },
   { id: 'swipe', text: 'Glissez une note pour l’épingler ou la supprimer' },
   { id: 'paste', text: 'Collez une image ou un lien pour en faire une note', fine: true },
   { id: 'links', text: 'Écrivez [[Titre]] pour relier deux notes' },
@@ -105,6 +106,17 @@ export const CHANGE_KINDS = [
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-19',
+    changes: {
+      new: [
+        'Touche S : sélectionner plusieurs notes au clavier (Espace coche, Échap termine)',
+      ],
+      better: [
+        'Les pastilles sous le titre se touchent plus facilement, sans grossir',
+      ],
+    },
+  },
   {
     date: '2026-10-19',
     changes: {
@@ -352,12 +364,12 @@ Ctrl sur Windows, ⌘ sur Mac :
 - Ctrl + Maj + 7 / 8 / 9 : liste numérotée / à puces / à cocher
 - Ctrl + K : lien · Ctrl + Maj + K : carte à réviser
 - Ctrl + Alt + 1 / 2 / 3 : titres
-- Sur l’accueil : **N** note, **L** liste, **D** journal du jour, **/** rechercher
+- Sur l’accueil : **N** note, **L** liste, **D** journal du jour, **/** rechercher, **S** sélectionner (Espace coche une note, Échap termine)
 - **Alt + ↑ / ↓** sur une note épinglée : la monter ou la descendre
 
 # Organiser
 - Glissez une note à droite : **épingler** ; à gauche : **supprimer**
-- **Appui long** : sélectionner plusieurs notes (déplacer, fusionner, partager)
+- **Appui long**, ou **S** au clavier : sélectionner plusieurs notes (déplacer, fusionner, partager)
 - **Clic droit** sur une note, à la souris : son menu
 - **⋮** sur une note : épingler, déplacer, rappel, partager, masquer
 - **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (code PIN), corbeille
