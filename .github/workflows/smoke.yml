@@ -3,9 +3,9 @@ name: Smoke
 
 on:
   push:
-    branches: [notes-v3, notes-v3-adaptive]
+    branches: [notes-v3, notes-v3-adaptive, notes-pwa]
   pull_request:
-    branches: [notes-v3]
+    branches: [notes-v3, notes-pwa]
 
 jobs:
   smoke:
