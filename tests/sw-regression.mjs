@@ -21,7 +21,6 @@ const caches = {
 const context = vm.createContext({
   console,
   URL,
-  Request,
   Response,
   Blob,
   Promise,
@@ -43,7 +42,7 @@ assert.ok(navigation, 'service worker must register a fetch handler');
 
 let responsePromise;
 navigation({
-  request: new Request('https://notes.example.test/', { method: 'GET', mode: 'navigate' }),
+  request: { method: 'GET', mode: 'navigate', url: 'https://notes.example.test/' },
   respondWith(promise) { responsePromise = promise; },
 });
 const response = await responsePromise;
