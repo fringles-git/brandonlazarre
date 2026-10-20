@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "smoke": "npm run build && node tests/smoke.mjs"
+    "smoke": "npm run build && node tests/sw-regression.mjs && node tests/smoke.mjs"
   },
   "dependencies": {
     "@fontsource-variable/figtree": "^5.2.0",
