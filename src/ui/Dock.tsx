@@ -4,12 +4,51 @@ import { useShallow } from 'zustand/react/shallow';
 import { CONFIG, SEARCH_KINDS, KIND_ICON, KIND_TONE } from '../config';
 import { filterNotes, get, inTrash, KIND_TEST, tabLabel, useStore, visibleNotes } from '../store';
 import {
-  allSelected, clearRecents, closeSearch, deleteSelection, goHome, endSelecting, hideSelection, openSearch, pinSelection,
+  allSelected, clearRecents, closeSearch, deleteSelection, goHome, endSelecting, hideSelection, openSearch, openNoteMenu, pinSelection,
   restoreSelection, saveCollection, selectAll, setQuery, toggleKind, toggleLayer, goLibrary, toggleSettings,
 } from '../actions';
 import { cancelRecording, stopRecording } from '../features';
 import { clock, haptic, plural } from '../utils';
 import { Icon } from './icons';
+
+/** Global keyboard shortcuts for desktop / keyboard-enabled tablets. */
+function useKeyboardShortcuts() {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+      if (typing || e.altKey) return;
+
+      const state = get();
+      if (state.welcome || state.tour) return;
+
+      const key = e.key.toLowerCase();
+      const mod = e.metaKey || e.ctrlKey;
+
+      if (key === 'escape') {
+        if (state.searchOpen) { e.preventDefault(); closeSearch(); }
+        else if (state.selecting) { e.preventDefault(); endSelecting(); }
+        return;
+      }
+      if (mod && key === 'k') {
+        e.preventDefault();
+        if (state.editor.id === null && !state.sheet) openSearch();
+        return;
+      }
+      if (key === '/' && !mod && state.editor.id === null && !state.sheet) {
+        e.preventDefault();
+        openSearch();
+        return;
+      }
+      if (key === 'n' && !mod && state.editor.id === null && !state.sheet && !state.searchOpen && !state.selecting) {
+        e.preventDefault();
+        toggleLayer('create');
+      }
+    };
+    addEventListener('keydown', onKeyDown);
+    return () => removeEventListener('keydown', onKeyDown);
+  }, []);
+}
 
 /** + opens Créer. Or, in one gesture: press (or hold), slide onto a choice, release — it is made. */
 function Fab() {
@@ -44,7 +83,7 @@ function Fab() {
     if (commit) d.hit?.click();
   };
   return (
-    <button className="fab" id="fab" aria-label="Créer : note, vocal, import" aria-haspopup="dialog" aria-expanded={open}
+    <button className="fab" id="fab" aria-label="Créer : note, vocal, import" aria-haspopup="dialog" aria-expanded={open} aria-keyshortcuts="N"
       onPointerDown={e => {
         if (e.button) return;
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -175,6 +214,7 @@ function RecordingBar() {
 }
 
 export function Dock() {
+  useKeyboardShortcuts();
   const s = useStore(useShallow(s => ({ searching: s.searchOpen, selecting: s.selecting, recording: s.recorder.on })));
   return (
     <>
