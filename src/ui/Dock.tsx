@@ -4,7 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { CONFIG, SEARCH_KINDS, KIND_ICON, KIND_TONE } from '../config';
 import { filterNotes, get, inTrash, KIND_TEST, tabLabel, useStore, visibleNotes } from '../store';
 import {
-  allSelected, clearRecents, closeSearch, deleteSelection, goHome, endSelecting, hideSelection, openSearch, openNoteMenu, pinSelection,
+  allSelected, clearRecents, closeSearch, deleteSelection, goHome, endSelecting, hideSelection, openSearch, pinSelection,
   restoreSelection, saveCollection, selectAll, setQuery, toggleKind, toggleLayer, goLibrary, toggleSettings,
 } from '../actions';
 import { cancelRecording, stopRecording } from '../features';
