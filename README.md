@@ -5,8 +5,26 @@ Mobile-first, offline notes PWA. Thumb-first layout, liquid glass. React 19 + Ty
 ```
 npm i
 npm run dev      # local
-npm run build    # → dist/ (deployed to branch notes-v3-site)
+npm run build    # → dist/ (+ version.json: version, build stamp, commit)
+npm run smoke    # build + service worker check + the key paths in a real Chromium
+npm run deploy   # test, then put the current notes-v3 commit live
 ```
+
+## Branches
+| Branch | Role |
+|---|---|
+| `notes-v3` | source — work lands here through pull requests |
+| `notes-v3-site` | built site only, written by `npm run deploy`; Hostinger pulls it into `brandonlazarre.fr/notes-v3` (notes-v3.brandonlazarre.fr) |
+| `notes-site` | built site of the previous app, still live on notes.brandonlazarre.fr |
+| `main` | repository default (licence, readme) |
+
+## Deploy
+`npm run deploy` (see `scripts/deploy.mjs`) refuses uncommitted or unpushed work, runs the smoke test, publishes `dist/` as one
+commit on `notes-v3-site` (`Build <version>`, with the source commit), then waits until https://notes-v3.brandonlazarre.fr/version.json
+reports that build. GitHub Actions runs the same command on every push to `notes-v3` (`.github/workflows/deploy.yml`).
+- Roll back: `npm run deploy -- --rollback 26.10.19.8` (or a `notes-v3-site` commit): the old files as a new commit, nothing force-pushed.
+- Emergency: `--skip-tests`. No network to the site: `--no-verify`.
+- Users get the new version through the service worker: open copies offer “Nouvelle version disponible · Recharger”.
 
 ## Map
 | File | Role |
