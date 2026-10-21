@@ -62,6 +62,12 @@ async function check(name, run, { viewport = { width: 390, height: 844 }, colorS
   await ctx.close();
 }
 const expect = (ok, what) => { if (!ok) throw Error(what); };
+/** Waits for the element's animations and transitions to land before measuring it: CI's Chromium can still be on the first frame. */
+const landed = (page, selector) => page.evaluate(sel => Promise.race([
+  Promise.all(document.querySelector(sel).getAnimations({ subtree: true })
+    .filter(a => a.effect?.getComputedTiming().endTime !== Infinity).map(a => a.finished.catch(() => {}))),
+  new Promise(done => setTimeout(done, 3000)),
+]), selector);
 /** Compares the screen with tests/shots/<name>.png; the first run (or --update-shots) writes the reference. */
 async function shot(page, name, hide = '') {
   if (process.env.SHOTS === 'off') return;
@@ -286,6 +292,7 @@ await check('Quoi de neuf: reopens from Réglages with the installed version, sa
 await check('phone sheet: from the bottom edge, the dock steps aside, a pull on the handle closes it', async page => {
   await page.click('#nav-settings');
   await page.waitForSelector('.sheet[data-mode="settings"]');
+  await landed(page, '.sheet');
   const box = await page.locator('.sheet').boundingBox();
   expect(Math.abs(box.y + box.height - 844) < 2, 'sheet ends at the bottom edge: ' + (box.y + box.height));
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.main-dock')).visibility === 'hidden');
@@ -308,6 +315,7 @@ await check('editor: one bar — Aa swaps the tools for formatting; templates si
   await page.click('#fab');
   await page.click('#create-note');
   await page.waitForSelector('.editor.open .starters .starter');
+  await landed(page, '.editor.open');
   const placeholder = await page.locator('textarea.editor-text').boundingBox(), starters = await page.locator('.starters').boundingBox();
   expect(starters.y > placeholder.y && starters.y < 400, 'templates under the placeholder, in the note');
   await page.click('textarea.editor-text');
