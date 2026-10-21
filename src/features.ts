@@ -442,14 +442,15 @@ export function exportBackup() {
   closeLayer();
   const run = async () => {
     try {
-      const s = get();
+      const s = get(), hidden = s.notes.filter(n => n.locked).length;
       download(await backupBlob(s.notes, s.folders, s.folderColors), 'notes-' + new Date().toISOString().slice(0, 10) + '.json');
       setPref('lastBackup', Date.now());
       persistStorage();
-      toast(plural(s.notes.length, 'note exportée', 'notes exportées') + '. Le fichier contient aussi les notes masquées, en clair.');
+      // The JSON backup is in clear: hidden notes stay out of it (db.ts), and stay encrypted on the device
+      toast(plural(s.notes.length - hidden, 'note exportée', 'notes exportées') + (hidden ? '. Les notes masquées n’y sont pas : elles restent chiffrées ici.' : '.'));
     } catch { toast('Échec de l’export.'); }
   };
-  if (get().notes.some(n => n.locked)) unlock(run); else run();
+  run();
 }
 export const backupDue = (s = get()) =>
   s.notes.filter(n => !n.deleted).length >= 3 && Date.now() - (s.prefs.lastBackup || s.prefs.firstRun || Date.now()) > CONFIG.backupNagDays * DAY;

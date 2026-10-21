@@ -81,11 +81,20 @@ async function attToBackup(a: Attachment): Promise<Attachment> {
   return { ...rest, url: await readDataUrl(blob) };
 }
 
-/** Builds the backup as a Blob piece by piece, so big attachments never sit in one giant string. */
+/**
+ * Builds a plain backup as a Blob piece by piece.
+ * Hidden notes are deliberately excluded: this legacy JSON format is not encrypted,
+ * so exporting their contents would defeat the point of the hidden-notes protection.
+ * The Markdown vault export has the same safety rule unless the hidden vault is open.
+ */
 export async function backupBlob(notes: Note[], folders: string[], folderColors: Record<string, number>) {
-  let out = new Blob([JSON.stringify({ app: 'notes', version: 1, exported: new Date().toISOString(), folders, folderColors }).slice(0, -1) + ',"notes":[']);
-  for (const [i, n] of notes.entries()) {
-    const atts = await Promise.all(n.atts.map(attToBackup)), { sealed: _s, sealedOnly: _o, ...plain } = n;   // backups hold notes in clear
+  const safeNotes = notes.filter(n => !n.locked);
+  let out = new Blob([JSON.stringify({
+    app: 'notes', version: 1, exported: new Date().toISOString(), folders, folderColors,
+    hiddenNotesExcluded: notes.length - safeNotes.length,
+  }).slice(0, -1) + ',"notes":[']);
+  for (const [i, n] of safeNotes.entries()) {
+    const atts = await Promise.all(n.atts.map(attToBackup)), { sealed: _s, sealedOnly: _o, ...plain } = n;
     out = new Blob([out, (i ? ',' : '') + JSON.stringify({ ...plain, atts })]);
   }
   return new Blob([out, ']}'], { type: 'application/json' });

@@ -1,0 +1,48 @@
+# Notes v3 — every pull request is tested; every push to notes-v3 is tested, then deployed by the same script as by hand
+# (npm run deploy: publish dist/ on notes-v3-site, which Hostinger pulls, then wait until the live site serves it).
+# Run it by hand (Actions › Test & deploy › Run workflow, on notes-v3) to redeploy. Rollbacks: npm run deploy -- --rollback <version>.
+name: Test & deploy
+
+on:
+  push:
+    branches: [notes-v3]
+  pull_request:
+    branches: [notes-v3]
+  workflow_dispatch:
+    inputs:
+      skip_asr:
+        description: Skip the speech-to-text test (it downloads its model from Hugging Face)
+        type: boolean
+        default: false
+
+concurrency:   # one deploy at a time, in push order; a newer push to a pull request cancels its older test
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write   # the deploy pushes to notes-v3-site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - name: Smoke test (builds dist/)
+        run: npm run smoke
+        env:
+          SHOTS: "off"   # reference shots belong to the machine that made them
+          SKIP_ASR: ${{ inputs.skip_asr && '1' || '' }}
+      - name: Deploy the tested build
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/notes-v3'
+        run: npm run deploy -- --prebuilt
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
