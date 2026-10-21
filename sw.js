@@ -1,10 +1,10 @@
 /* Notes — offline support. VERSION and FILES are filled at build time; a new VERSION makes the app offer "Recharger". */
-const VERSION = 'notes-20261021143524';
+const VERSION = 'notes-20261021150347';
 const SHARE_CACHE = 'notes-share';   // files shared to Notes, picked up by the app
 const EXTRAS = 'notes-extras';       // vendor/extra: big optional libraries, cached on first use, kept across updates
 const FILES = ['./', './manifest.webmanifest', './vendor/pdf.min.js', './vendor/pdf.worker.min.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png']
-  .concat(["./assets/figtree-latin-ext-wght-normal-DCwSJGxG.woff2","./assets/figtree-latin-wght-normal-D_ZTVpCC.woff2","./assets/index-DVPhwAge.css","./assets/index-Dj8ZlKY9.js"]);
+  .concat(["./assets/figtree-latin-ext-wght-normal-DCwSJGxG.woff2","./assets/figtree-latin-wght-normal-D_ZTVpCC.woff2","./assets/index-DVPhwAge.css","./assets/index-DpODgNnK.js"]);
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(FILES)));   // no skipWaiting: the app asks first
@@ -32,14 +32,25 @@ self.addEventListener('fetch', event => {
     return;
   }
   if (request.method !== 'GET' || url.origin !== location.origin) return;
-  // The app shell: network first (always the latest deploy online), cache when offline or slow
+  // The app shell: network first (always the latest deploy online), cache when offline or slow.
+  // A non-2xx response is not a valid shell: keep the cached app usable behind transient
+  // proxy/auth errors instead of returning the server's error page to the installed PWA.
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
       try {
-        const fresh = await Promise.race([fetch(request, { cache: 'no-store' }), new Promise((_, no) => setTimeout(no, 3000))]);
-        if (fresh.ok) (await caches.open(VERSION)).put('./', fresh.clone());
-        return fresh;
-      } catch { return (await caches.match('./')) || fetch(request); }
+        const fresh = await Promise.race([
+          fetch(request, { cache: 'no-store' }),
+          new Promise((_, no) => setTimeout(() => no(new Error('navigation timeout')), 3000)),
+        ]);
+        if (fresh.ok) {
+          (await caches.open(VERSION)).put('./', fresh.clone()).catch(() => {});
+          return fresh;
+        }
+        const cached = await caches.match('./');
+        return cached || fresh;
+      } catch {
+        return (await caches.match('./')) || fetch(request);
+      }
     })());
     return;
   }

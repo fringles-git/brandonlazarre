@@ -9,7 +9,7 @@ AddType application/manifest+json .webmanifest
 AddType text/javascript .js .mjs
 AddType application/wasm .wasm
 
-<FilesMatch "^(index\.html|sw\.js|manifest\.webmanifest)$">
+<FilesMatch "^(index\.html|sw\.js|manifest\.webmanifest|version\.json)$">
   Header set Cache-Control "no-cache"
 </FilesMatch>
 <FilesMatch "^(?!sw\.js$).*\.(png|js)$">
