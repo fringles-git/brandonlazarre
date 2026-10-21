@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/react/shallow';
 import type { ChangeKind, Note, SheetMode } from '../types';
-import { CHANGE_KINDS, CREDITS, CURRENT, findRelease, RELEASE_LIST, releasesSince, type Release } from '../config';
+import { CHANGE_KINDS, CREDITS, CURRENT, findRelease, GUIDE, RELEASE_LIST, releasesSince, type Release } from '../config';
 import { backlinks, dueCards, entities, flashcards, hostOf, masteredCount, nextDue, titleIndex, withScheme } from '../markdown';
 import { urlOf } from '../media';
 import { folderColor, noteById, readableNotes, tabFolder, tabLabel, tabNotes, useStore } from '../store';
@@ -260,7 +260,10 @@ function ChangeGroup({ kind, title, items }: { kind: ChangeKind; title: string; 
     </section>
   );
 }
+const Changes = ({ r }: { r: Release }) => <>{CHANGE_KINDS.map(k => r.changes[k.kind]?.length ? <ChangeGroup key={k.kind} kind={k.kind} title={k.title} items={r.changes[k.kind]!} /> : null)}</>;
 function Timeline({ releases, open: openCount = 1 }: { releases: Release[]; open?: number }) {
+  // One release: its version, date and counts are already in the summary above — straight to what changed
+  if (releases.length === 1) return <div className="timeline-bare"><Changes r={releases[0]} /></div>;
   return (
     <ol className="timeline">{releases.map((r, i) => (
       <li key={r.version} className={'release' + (r === CURRENT ? ' is-installed' : '')}>
@@ -269,7 +272,7 @@ function Timeline({ releases, open: openCount = 1 }: { releases: Release[]; open
             <span className="release-title"><span className="release-node" aria-hidden="true" />{r.version}{r === CURRENT && <span className="badge">Installée</span>}</span>
             <span className="release-meta">{[releaseDate(r.date), ...countChanges([r]).map(c => plural(c.count, c.one, c.many)), r.legacy && r.legacy !== r.version && 'ex-' + r.legacy].filter(Boolean).join(' · ')}</span>
           </summary>
-          {CHANGE_KINDS.map(k => r.changes[k.kind]?.length ? <ChangeGroup key={k.kind} kind={k.kind} title={k.title} items={r.changes[k.kind]!} /> : null)}
+          <Changes r={r} />
         </details>
       </li>
     ))}</ol>
@@ -305,6 +308,9 @@ function News() {
   );
 }
 
+/** The guide, from Réglages › Aide: read like a note, kept out of the notes. */
+const Guide = () => <div className="guide-text"><Formatted body={GUIDE} /></div>;
+
 const SHEETS: Record<SheetMode, { title: (center: number | null) => string; Content: () => React.ReactNode; Foot?: () => React.ReactNode }> = {
   study: { title: () => 'Réviser', Content: Study, Foot: StudyFoot },
   map: { title: (c: number | null) => (c !== null ? 'Carte des liens · ' + (noteById(c)?.title || 'Sans titre') : 'Carte des liens'), Content: LinkMap },
@@ -312,20 +318,25 @@ const SHEETS: Record<SheetMode, { title: (center: number | null) => string; Cont
   settings: { title: () => 'Réglages', Content: Settings },
   about: { title: () => 'À propos', Content: About },
   news: { title: () => 'Quoi de neuf', Content: News, Foot: () => <Btn primary label="Continuer" onClick={closeSheet} /> },
+  guide: { title: () => 'Guide d’utilisation', Content: Guide },
 };
 
 /** Recurring tools open on the thumb's side of a wide screen; long focused tasks take the whole screen (CSS). */
-const SIDE_SHEETS: SheetMode[] = ['overview', 'settings', 'about', 'news'];
+const SIDE_SHEETS: SheetMode[] = ['overview', 'settings', 'about', 'news', 'guide'];
+const FULL_SHEETS: SheetMode[] = ['study', 'map'];
 
 export function SheetHost() {
   const mode = useStore(s => s.sheet), center = useStore(s => s.mapCenter);
   const def = mode ? SHEETS[mode] : null, title = def?.title(center) || '', Foot = def?.Foot;
+  // On a phone the others are bottom sheets: a handle, and a pull down on the head closes them (gestures.ts)
   return (
-    <Layer open={!!mode} onClose={closeSheet} label={title} className="sheet glass" drawer={!!mode && SIDE_SHEETS.includes(mode)} data={{ 'data-mode': mode || undefined }}
+    <Layer open={!!mode} onClose={closeSheet} label={title} className="sheet glass" drawer={!!mode && SIDE_SHEETS.includes(mode)}
+      data={{ 'data-mode': mode || undefined, 'data-drag': mode && !FULL_SHEETS.includes(mode) ? '' : undefined }}
       initialFocus={() => document.querySelector<HTMLElement>('.sheet-foot .primary') || document.getElementById('sheet-close')}>
       {def && <>
+        {!FULL_SHEETS.includes(mode!) && <span className="sheet-grabber" aria-hidden="true" />}
         <div className="sheet-head"><h2 aria-hidden="true">{title}</h2><button className="icon-btn" id="sheet-close" onClick={closeSheet} aria-label="Fermer"><Icon name="close" /></button></div>
-        <div className="sheet-body"><def.Content /></div>
+        <div className="sheet-body" key={mode}><def.Content /></div>
         {Foot && <div className="sheet-foot"><Foot /></div>}
       </>}
     </Layer>

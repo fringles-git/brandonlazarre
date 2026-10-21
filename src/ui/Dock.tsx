@@ -8,7 +8,7 @@ import {
   restoreSelection, saveCollection, selectAll, setQuery, toggleKind, toggleLayer, goLibrary, toggleSettings,
 } from '../actions';
 import { cancelRecording, stopRecording } from '../features';
-import { clock, haptic, plural } from '../utils';
+import { clock, finePointer, haptic, MOD, plural } from '../utils';
 import { Icon } from './icons';
 
 /** + opens Créer. Or, in one gesture: press (or hold), slide onto a choice, release — it is made. */
@@ -44,7 +44,7 @@ function Fab() {
     if (commit) d.hit?.click();
   };
   return (
-    <button className="fab" id="fab" aria-label="Créer : note, vocal, import" aria-haspopup="dialog" aria-expanded={open}
+    <button className="fab" id="fab" aria-label="Créer : note, vocal, import" aria-haspopup="dialog" aria-expanded={open} title={finePointer() ? 'Créer (N : nouvelle note)' : undefined}
       onPointerDown={e => {
         if (e.button) return;
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -72,8 +72,9 @@ function MainDock() {
   }));
   const at = s.home ? 0 : s.library ? 1 : s.settings ? 3 : -1;   // Recherche (2) is a mode, never a place
   /** A destination says where you are (aria-current); a panel says whether it is open (aria-pressed). */
-  const tab = (id: string, icon: string, label: string, onClick: () => void, on: boolean, popup = false) => (
-    <button className="tab-btn" id={id} onClick={onClick} {...(popup ? { 'aria-pressed': on, 'aria-haspopup': 'dialog' as const } : { 'aria-current': on ? 'page' as const : undefined })}>
+  const tab = (id: string, icon: string, label: string, onClick: () => void, on: boolean, popup = false, keys = '') => (
+    <button className="tab-btn" id={id} onClick={onClick} title={keys && finePointer() ? `${label} (${keys})` : undefined}
+      {...(popup ? { 'aria-pressed': on, 'aria-haspopup': 'dialog' as const } : { 'aria-current': on ? 'page' as const : undefined })}>
       <Icon name={icon} /><span>{label}</span>
     </button>
   );
@@ -83,7 +84,7 @@ function MainDock() {
         <span className="seg-thumb" data-off={at < 0 || undefined} aria-hidden="true" />
         {tab('nav-notes', 'all', 'Notes', goHome, s.home)}
         {tab('nav-library', 'library', 'Bibliothèque', goLibrary, s.library)}
-        {tab('search-button', 'search', 'Recherche', openSearch, false)}
+        {tab('search-button', 'search', 'Recherche', openSearch, false, false, '/ ou ' + MOD + 'K')}
         {tab('nav-settings', 'settings', 'Réglages', toggleSettings, s.settings, true)}
       </div>
       <Fab />
@@ -120,6 +121,7 @@ function SearchDock() {
           <Icon name="search" />
           <input id="search-input" ref={input} type="search" enterKeyHint="search" placeholder={'Rechercher dans ' + where} aria-label={'Rechercher dans ' + where}
             value={s.query} onChange={e => setQuery(e.target.value)} />
+          {!s.query && finePointer() && <kbd className="kbd" title="Ouvre la recherche depuis l’accueil" aria-hidden="true">{MOD}K</kbd>}
           {s.query && <button className="search-clear" onClick={() => { setQuery(''); input.current?.focus(); }} aria-label="Effacer la recherche"><Icon name="close" /></button>}
         </label>
         <button className="fab is-quiet" onClick={closeSearch} aria-label="Fermer la recherche"><Icon name="close" /></button>

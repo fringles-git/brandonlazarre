@@ -1,4 +1,4 @@
-/** Touch & keyboard: long-press select, swipe pin/trash, pinned reorder, pull-to-search, drag-to-close, shortcuts, paste. */
+/** Touch & keyboard: long-press select, swipe pin/trash, pinned reorder, pull-to-search, drag-to-close (note, sheets), shortcuts, paste. */
 import { CONFIG, TOUR } from './config';
 import { icons } from './ui/icons';
 import { anchorFrom } from './ui/kit';
@@ -7,8 +7,8 @@ import {
   closeEditor, closeLayer, closeSearch, closeSheet, createAndOpen, dailyNote, doSwipe, endSelecting, flushEditor, fromTemplate, goHome,
   openNoteMenu, openSearch, reorderPinned, startSelecting, swipeAction,
 } from './actions';
-import { answer, checkReminders, importShared, reveal, tourStep } from './features';
-import { haptic, isTyping } from './utils';
+import { answer, checkReminders, endWelcome, importShared, reveal, tourStep } from './features';
+import { haptic, isTyping, wide } from './utils';
 
 const CARD = '#note-list .card';
 const press = { timer: 0, x: 0, y: 0, blockClick: false };
@@ -16,6 +16,7 @@ const swipe = { card: null as HTMLElement | null, active: false, armed: false, d
 const drag = { card: null as HTMLElement | null, x: 0, y: 0, target: null as HTMLElement | null };
 const pull = { y: null as number | null, dy: 0 };
 const close = { y: null as number | null, dy: 0, active: false };
+const sheet = { el: null as HTMLElement | null, y: 0, dy: 0 };
 const editorEl = () => document.getElementById('editor');
 const split = () => matchMedia(CONFIG.splitMedia).matches;
 
@@ -32,6 +33,9 @@ function onDown(e: PointerEvent) {
   const t = e.target as HTMLElement;
   if (t.closest('#format-bar button')) e.preventDefault();   // keep the textarea focused
   if (e.button !== 0) return;
+  // A bottom sheet (phone) follows the finger down from its handle or head, and closes past a threshold
+  const head = t.closest<HTMLElement>('.sheet[data-drag]:not([data-closing]) :is(.sheet-grabber, .sheet-head)');
+  if (head && !t.closest('button, input') && !wide()) return void Object.assign(sheet, { el: head.closest('.sheet'), y: e.clientY, dy: 0 });
   const grip = t.closest<HTMLElement>('.card-grip');
   if (grip && get().selecting) {
     e.preventDefault();
@@ -48,7 +52,7 @@ function onDown(e: PointerEvent) {
   press.blockClick = false;
   swipe.card = null;
   const card = t.closest<HTMLElement>(CARD);
-  if (!card || get().selecting || t.closest('.check-hit, .wave-play, .card-more')) return;
+  if (!card || get().selecting || t.closest('.check-hit, .wave-play, .card-more, .card-actions')) return;
   Object.assign(press, { x: e.clientX, y: e.clientY });
   press.timer = window.setTimeout(() => { press.blockClick = true; swipe.card = null; startSelecting(+card.dataset.id!); }, CONFIG.longPressMs);
   const nearEdge = e.pointerType === 'touch' && (e.clientX < 24 || e.clientX > innerWidth - 24);   // leave system back gestures alone
@@ -76,6 +80,12 @@ function moveSwipe(dx: number) {
 }
 
 function onMove(e: PointerEvent) {
+  if (sheet.el) {
+    sheet.dy = Math.max(0, e.clientY - sheet.y);
+    sheet.el.classList.add('dragging');
+    sheet.el.style.translate = `0 ${sheet.dy}px`;
+    return;
+  }
   if (drag.card) {
     drag.card.style.transform = `translate(${e.clientX - drag.x}px, ${e.clientY - drag.y}px)`;
     const over = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>(CARD + '[data-pinned]'), target = over && over !== drag.card ? over : null;
@@ -114,6 +124,20 @@ function onMove(e: PointerEvent) {
 
 function onUp(commit: boolean) {
   clearTimeout(press.timer);
+  if (sheet.el) {
+    const el = sheet.el, done = commit && sheet.dy >= CONFIG.sheetDragClose;
+    sheet.el = null;
+    el.classList.remove('dragging');
+    if (done) {
+      haptic('confirm');
+      if (el.classList.contains('welcome')) endWelcome(false); else closeSheet();
+      return;
+    }
+    el.classList.add('drag-release');
+    el.style.translate = '';
+    setTimeout(() => el.classList.remove('drag-release'), 240);
+    return;
+  }
   if (drag.card) {
     const { card, target } = drag;
     Object.assign(drag, { card: null, target: null });
@@ -269,9 +293,11 @@ function onVisibility() {
   }
 }
 const onScroll = () => document.documentElement.classList.toggle('is-scrolled', scrollY > 0);
+/** Keyboard height (--kb), only while something takes typing: the browser's own bars coming and going never move the dock. */
 function onViewport() {
-  const v = visualViewport!, kb = Math.max(0, innerHeight - v.height - v.offsetTop);
-  document.documentElement.style.setProperty('--kb', (kb > 60 ? kb : 0) + 'px');
+  const v = visualViewport!, gap = Math.max(0, innerHeight - v.height - v.offsetTop), kb = gap > 60 && isTyping(document.activeElement) ? gap : 0;
+  document.documentElement.style.setProperty('--kb', kb + 'px');
+  document.documentElement.classList.toggle('kb-open', kb > 0);
 }
 
 /** Wires every global listener; returns the cleanup. */
@@ -283,14 +309,19 @@ export function bindGestures() {
     ['visibilitychange', onVisibility], ['touchstart', onTouchStart as EventListener, { passive: true }],
     ['touchmove', onTouchMove as EventListener, { passive: true }], ['touchend', onTouchEnd], ['touchcancel', onTouchEnd],
   ];
+  const focus = () => { if (window.visualViewport) requestAnimationFrame(onViewport); };
   doc.forEach(([t, f, o]) => document.addEventListener(t, f, o));
   addEventListener('scroll', onScroll, { passive: true });
   visualViewport?.addEventListener('resize', onViewport);
   visualViewport?.addEventListener('scroll', onViewport);
+  document.addEventListener('focusin', focus);
+  document.addEventListener('focusout', focus);
   return () => {
     doc.forEach(([t, f]) => document.removeEventListener(t, f));
     removeEventListener('scroll', onScroll);
     visualViewport?.removeEventListener('resize', onViewport);
     visualViewport?.removeEventListener('scroll', onViewport);
+    document.removeEventListener('focusin', focus);
+    document.removeEventListener('focusout', focus);
   };
 }

@@ -1,5 +1,5 @@
 /** The note editor: a full-height glass sheet. Formatted view until touched; every tool sits at the bottom. */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { Attachment, Note } from '../types';
 import { CONFIG, DAY, TEMPLATES } from '../config';
@@ -11,17 +11,19 @@ import {
   open, openImport, openLayer, openLink, openNoteMenu, openPicker, patchEditor, removeAtt, setTab, toast, toggleFormatBar, toggleOpenCheck,
 } from '../actions';
 import { addAttText, attText, audioRate, cycleRate, editorAudios, openMap, pauseOthers, startStudy, toCalendar } from '../features';
-import { clock, dayOrTime, eventDate, finePointer, goUrl, isToday, openUrl, plural, rate } from '../utils';
+import { clock, dayOrTime, eventDate, finePointer, goUrl, isToday, MOD, openUrl, plural, rate } from '../utils';
 import { Chip, FolderTag, Formatted } from './kit';
 import { Icon } from './icons';
 import { pdfMeta } from './List';
 
+/** In the note's top bar: shows while typing and for a moment after saving, then fades (CSS); a failure stays. */
 function SaveStatus() {
   const s = useStore(useShallow(s => ({ status: s.editor.saveStatus, last: s.editor.lastSaved, mem: s.memOnly })));
+  const status = s.mem ? 'error' : s.status;
   const label = s.mem ? 'Non conservé' : { saving: 'Enregistrement…', error: 'Non enregistré', modified: 'Modifié', saved: 'Enregistré' }[s.status];
   const when = s.status === 'saved' && !s.mem && s.last ? (isToday(s.last) ? ' à ' : ' le ') + dayOrTime(s.last) : '';
   // Only a failure is announced: autosave states would speak at every pause in typing
-  return <span className="save-status" data-status={s.status} aria-live={s.status === 'error' ? 'assertive' : 'off'} title={s.mem ? label + ' : stockage indisponible' : label + when}><i aria-hidden="true" /><span>{label}</span><span className="visually-hidden">{when}</span></span>;
+  return <span className="save-status" data-status={status} aria-live={status === 'error' ? 'assertive' : 'off'} title={s.mem ? label + ' : stockage indisponible' : label + when}><i aria-hidden="true" /><span>{label}</span><span className="visually-hidden">{when}</span></span>;
 }
 
 /** Outline, flashcards and link map, one tap away under the title. */
@@ -138,11 +140,13 @@ function Attachments({ note }: { note: Note }) {
   );
 }
 
-const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
+/** Aa on: the same island now holds the formatting tools (Aa first, to go back) — one row, never stacked. */
 function FormatStrip({ state }: { state: FormatState | null }) {
   const level = state ? headingLevel(state.kind) : 0;
   return (
     <div className="format-strip island glass" role="toolbar" aria-label="Mise en forme">
+      <button className="icon-btn format-toggle" onClick={toggleFormatBar} aria-label="Mise en forme" aria-pressed="true"><span className="glyph" aria-hidden="true">Aa</span></button>
+      <span className="format-sep" aria-hidden="true" />
       {FORMAT_TOOLS.map(t => {
         const heading = t.id === 'heading', label = heading && level ? `${t.label} (niveau ${level})` : t.label;
         const on = !!state && (heading ? level > 0 : (t.id === 'card' ? state.card : state.kind === t.id || state.marks.includes(t.id as never)));
@@ -214,7 +218,9 @@ export function Editor() {
     return () => document.removeEventListener('selectionchange', sync);
   }, []);
 
-  const trashed = !!note?.deleted, formatting = s.formatBar && !trashed, words = note ? wordCount(note.body) : 0;
+  // Formatting shows while writing (text focused), when Aa is on; reading shows the note tools
+  const trashed = !!note?.deleted, formatting = s.formatBar && !trashed && !s.reading, words = note ? wordCount(note.body) : 0;
+  const blank = !!note && !trashed && !note.body && !note.atts.length;
   const daysLeft = note?.deletedAt ? Math.max(1, Math.ceil((note.deletedAt + CONFIG.trashDays * DAY - Date.now()) / DAY)) : 0;
 
   const onViewClick = (e: React.MouseEvent) => {
@@ -228,8 +234,9 @@ export function Editor() {
   };
 
   return (
-    <section className={'editor' + (live ? ' open' : '') + (formatting ? ' is-formatting' : '')} id="editor" role="dialog" aria-label="Modifier la note" inert={s.sheet || !live || undefined}>
+    <section className={'editor' + (live ? ' open' : '') + (blank ? ' is-blank' : '')} id="editor" role="dialog" aria-label="Modifier la note" inert={s.sheet || !live || undefined}>
       <div className="editor-head">
+        {note && !trashed && <SaveStatus key={note.id} />}
         <span className="editor-grabber" aria-hidden="true" />
         <button className="icon-btn split-only" onClick={closeEditor} aria-label="Fermer la note"><Icon name="close" /></button>
       </div>
@@ -242,9 +249,8 @@ export function Editor() {
         <input className="editor-title" ref={title} placeholder="Titre" aria-label="Titre" value={note?.title || ''} readOnly={trashed}
           onChange={e => editField('title', e.target.value)} />
         <p className="editor-meta">
-          <SaveStatus />
-          {trashed && note?.folder && <> · <FolderTag folder={note.folder} /></>}
-          {words > 0 && <> · {plural(words, 'mot', 'mots')}</>}
+          {[trashed && note?.folder && <FolderTag key="f" folder={note.folder} />, words > 0 && plural(words, 'mot', 'mots')]
+            .filter(Boolean).map((x, i) => <Fragment key={i}>{i > 0 && ' · '}{x}</Fragment>)}
         </p>
         {note && <Tools note={note} />}
         {trashed && <div className="notice">Cette note est dans la corbeille.{daysLeft ? ' Suppression définitive dans ' + plural(daysLeft, 'jour', 'jours') + '.' : ''} ⋮ pour la restaurer.</div>}
@@ -252,6 +258,14 @@ export function Editor() {
         {note && note.atts.length > 0 && <Attachments note={note} />}
         <textarea className="editor-text" ref={body} placeholder="Écrire quelque chose…" aria-label="Note" hidden={s.reading} value={note?.body || ''} readOnly={trashed}
           onChange={e => editField('body', e.target.value)} onKeyDown={onEditorKey} onBlur={backToReading} />
+        {blank && <>
+          <div className="starters" role="group" aria-label="Commencer par">
+            {TEMPLATES.map(t => (
+              <button key={t.id} className="starter" onPointerDown={e => e.preventDefault()} onClick={() => applyTemplate(t.id)}><Icon name={t.icon} />{t.label}</button>
+            ))}
+          </div>
+          <div className="editor-blank-fill" aria-hidden="true" onClick={() => (s.reading ? editAt(null) : body.current?.focus())} />
+        </>}
         {s.reading && note && (
           <div className="editor-text editor-view" id="note-view" tabIndex={0} role="document" aria-label="Note mise en forme : Entrée pour modifier"
             onKeyDown={e => { if (e.key === 'Enter' && !e.defaultPrevented && e.target === e.currentTarget) { e.preventDefault(); editAt(null); } }}
@@ -262,27 +276,21 @@ export function Editor() {
         )}
       </div>
       <div className="editor-dock" id="format-bar">
-        {formatting && <FormatStrip state={format} />}
-          {note && !trashed && !note.body && !note.atts.length && (
-          <div className="starters" role="group" aria-label="Commencer par">
-            {TEMPLATES.map(t => (
-              <button key={t.id} className="chip" data-tone={t.tone} onPointerDown={e => e.preventDefault()} onClick={() => applyTemplate(t.id)}><Icon name={t.icon} />{t.label}</button>
-            ))}
-          </div>
-        )}
         <div className="thumb-row">
-          {!trashed && (
+          {formatting ? <FormatStrip state={format} /> : !trashed && (
             <div className="island glass" role="toolbar" aria-label="Outils de la note">
-              <button className="icon-btn" onClick={toggleFormatBar} aria-label="Mise en forme" aria-pressed={formatting}><span className="glyph" aria-hidden="true">Aa</span></button>
+              <button className="icon-btn" onClick={toggleFormatBar} aria-label="Mise en forme" aria-pressed="false"><span className="glyph" aria-hidden="true">Aa</span></button>
               <button className="icon-btn" onClick={() => applyFormat('check')} aria-label="Case à cocher" aria-pressed={format?.kind === 'check'}><Icon name="checklist" /></button>
               <button className="icon-btn" onClick={() => openImport('open')} aria-label="Joindre une photo, un audio ou un PDF" aria-haspopup="dialog"><Icon name="attach" /></button>
               {selected && !s.reading && <button className="icon-btn" onClick={extractSelection} aria-label="Créer une note avec la sélection"><Icon name="extract" /></button>}
             </div>
           )}
           <div className="thumb-group">
-            <div className="island glass">
-              <button className="icon-btn" id="note-more" onClick={() => note && openNoteMenu(note.id)} aria-label="Plus : épingler, déplacer, rappel, partager…" aria-haspopup="dialog"><Icon name="more" /></button>
-            </div>
+            {!formatting && (
+              <div className="island glass">
+                <button className="icon-btn" id="note-more" onClick={() => note && openNoteMenu(note.id)} aria-label="Plus : épingler, déplacer, rappel, partager…" aria-haspopup="dialog"><Icon name="more" /></button>
+              </div>
+            )}
             <button className="fab split-hidden" onClick={closeEditor} aria-label="Terminé"><Icon name="check" /></button>
           </div>
         </div>

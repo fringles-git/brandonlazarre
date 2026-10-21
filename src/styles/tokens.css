@@ -1,9 +1,9 @@
-/* Notes — design tokens. Liquid glass over a calm ambient field. */
+/* Notes — design tokens. A calm plain ground, solid content, liquid glass only for what floats over it. */
 
 :root {
   color-scheme: light dark;
 
-  /* Ambient field behind everything */
+  /* Ground; the ambient field (three soft blobs) is kept for the welcome only */
   --color-bg: light-dark(#eef0f6, #08090c);
   --ambient-1: light-dark(#ffe9a8, #3a2f0c);
   --ambient-2: light-dark(#cfe0ff, #0d1f3d);
@@ -11,16 +11,19 @@
 
   /* Ink */
   --color-text: light-dark(#16171b, #f2f3f7);
-  --color-text-muted: light-dark(#4f5361, #9a9eab);
-  --color-text-faint: light-dark(#6b6f7c, #82868f);   /* ≥4.4:1 as text on every surface */
+  --color-text-muted: light-dark(#484c59, #a4a8b4);   /* ≥7:1 on the ground and on cards */
+  --color-text-faint: light-dark(#5d616d, #8e929b);   /* ≥5.4:1 as text on every surface */
   --color-line: light-dark(#16171b14, #ffffff14);
+  --color-line-strong: light-dark(#16171b2e, #ffffff2e);
+  --color-focus: light-dark(#16171b, #f2f3f7);   /* focus ring: ink, readable on amber, blue and grey alike */
 
-  /* Surfaces */
-  --color-card: light-dark(#ffffffc7, #1d1e24b8);
-  --color-card-solid: light-dark(#ffffff, #18191e);
+  /* Surfaces: four roles, never stacked glass on glass
+     ground (--color-bg) · content, solid (--color-card) · floating controls and overlays, glass (--glass*) · chosen (--color-select-tint) */
+  --color-card: light-dark(#ffffff, #1a1b20);
+  --color-card-solid: light-dark(#ffffff, #1a1b20);
   --color-fill: light-dark(#16171b0d, #ffffff12);
   --color-fill-strong: light-dark(#16171b17, #ffffff1f);
-  --color-editor: light-dark(#f7f8fbf2, #0e0f13f2);
+  --color-editor: light-dark(#f7f8fb, #0e0f13);   /* the page being written: solid, nothing shows through */
 
   /* Glass */
   --glass: light-dark(#ffffff8c, #26272e80);
@@ -35,8 +38,8 @@
     0 10px 30px light-dark(#1218301f, #00000073);
 
   /* One meaning per colour, everywhere — a colour never decorates:
-     amber = create, commit, current, progress · blue = selection, focus · red = delete, recording
-     green = done, switched on · folder colours = organisation only (kind tones: outline icons and tints) */
+     amber = create and pinned (the + and what it makes) · blue = selection, links · ink = focus, primary buttons, progress
+     red = delete, recording · green = done, switched on · folder colours = organisation only (kind tones: outline icons and tints) */
   --color-accent: #f4c542;
   --color-accent-deep: light-dark(#8c6600, #e0ac1c);   /* amber as ink (ticks, strokes, labels): ≥4.5:1; fills stay --color-accent */
   --color-on-accent: #1a1608;
@@ -93,12 +96,12 @@
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
   --kb: 0px;
   --dock-bottom: calc(var(--safe-bottom) + var(--space-2) + var(--kb));
-  --dock-space: calc(var(--fab) + var(--safe-bottom) + var(--space-8));
+  --dock-space: calc(var(--dock-bottom) + var(--fab) + var(--space-6));   /* content always clears the dock (+ keyboard) */
   --layer-bottom: calc(var(--dock-bottom) + var(--fab) + var(--space-3));   /* menus and panels open above the dock, never over it */
   --dock-max: calc(var(--layout-max) - 2 * var(--gutter) + 2 * var(--edge));
   --dock-inset-l: max(var(--edge-l), (100vw - var(--dock-max)) / 2);   /* where the dock's sides fall: things above it line up */
   --dock-inset-r: max(var(--edge-r), (100vw - var(--dock-max)) / 2);
-  --split-list: max(36vw, 22rem);   /* list pane when the note opens beside it */
+  --split-list: clamp(22rem, 34vw, 30rem);   /* list pane when the note opens beside it: one readable column */
   --drawer-w: min(26rem, 45vw);   /* side panels on wide screens */
 
   /* Shape: every radius = its box height ÷ 3; containers stay concentric (inner radius + padding) */
@@ -109,16 +112,21 @@
   --radius-panel: calc(var(--radius-row) + var(--space-2));
   --radius-card: calc(var(--space-4) + 24px / var(--radius-ratio));
 
-  /* Type */
+  /* Type: one scale, and one role per step — nothing else picks a size
+     title (page) · heading (sheet, welcome) · card title / menu title · body · section label · meta · tab label */
   --font: 'Figtree Variable', Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --text-2xs: 10.5px;
-  --text-xs: 12px;
-  --text-sm: 13.5px;
-  --text-md: 15px;
-  --text-base: 16px;
-  --text-lg: 17px;
-  --text-xl: 21px;
-  --text-title: clamp(30px, 8vw, 38px);
+  --text-2xs: 11px;     /* tab and action labels: the smallest text, never smaller */
+  --text-xs: 12px;      /* meta: dates, counts, notes under an option */
+  --text-sm: 13.5px;    /* section labels, secondary text */
+  --text-md: 15px;      /* body: card text, rows, options */
+  --text-base: 16px;    /* inputs (no zoom on iOS) */
+  --text-lg: 17px;      /* card title, menu title */
+  --text-xl: 21px;      /* sheet heading */
+  --text-2xl: 26px;     /* welcome heading */
+  --text-title: clamp(30px, 8vw, 38px);   /* page title */
+  --weight-title: 800;
+  --weight-heading: 750;
+  --weight-label: 650;
   --leading: 1.45;
 
   /* Motion */
@@ -137,4 +145,13 @@
 }
 @media (max-height: 30em) {   /* phone landscape, short windows */
   :root { --text-title: 26px; }
+}
+@media (prefers-contrast: more) {   /* the device asks for more contrast: secondary text darkens, lines thicken */
+  :root {
+    --color-text-muted: light-dark(#2f323c, #d0d3dc);
+    --color-text-faint: light-dark(#3e414c, #b9bcc6);
+    --color-line: light-dark(#16171b4d, #ffffff4d);
+    --color-line-strong: light-dark(#16171b80, #ffffff80);
+    --glass: var(--glass-strong);
+  }
 }

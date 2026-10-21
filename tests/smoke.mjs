@@ -1,7 +1,9 @@
 /**
  * Smoke test of the built app, run before every push: `npm run smoke` (builds, serves dist/, drives a real Chromium).
  * Covers the paths that must never break: first launch, create, search, Library page, left hand, Quoi de neuf,
- * keyboard selection with undo, photo text, dark theme, the phone Plan closing on a tap, the tablet inspector.
+ * keyboard selection with undo, photo text, dark theme, the phone Plan closing on a tap, the tablet inspector,
+ * bottom sheets, the one-row editor bar, pinned shelf, compact list, quick actions with a mouse, side panels.
+ * Every check but the first launch starts with two notes (tests/fixtures/notes.json) seeded into IndexedDB.
  * Looks: a few screens are compared with reference shots in tests/shots/ (clock fixed, motion off). A change beyond
  * 0.3 % of pixels fails and leaves the diff in tests/shots/diff/; `npm run smoke -- --update-shots` accepts it.
  * References belong to the machine and Chromium that made them: SHOTS=off skips the comparison elsewhere (CI).
@@ -17,6 +19,17 @@ import pixelmatch from 'pixelmatch';
 
 const PORT = 4179, APP = `http://localhost:${PORT}/`;
 const photo = fileURLToPath(new URL('./fixtures/photo-texte.png', import.meta.url));
+const SEED = JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json', import.meta.url), 'utf8'));
+/** Runs before the app: creates the database with the two notes, once (a reload finds it and keeps what the test did). */
+const seedNotes = notes => {
+  const req = indexedDB.open('NotesAppDB', 1);
+  req.onupgradeneeded = () => {
+    ['notes', 'prefs'].forEach(s => req.result.createObjectStore(s, { keyPath: 'id' }));
+    const store = req.transaction.objectStore('notes');
+    notes.forEach(n => store.put({ folder: '', by: 'me', pinned: false, locked: false, atts: [], versions: [], ...n }));
+  };
+  req.onsuccess = () => req.result.close();
+};
 const SHOTS = fileURLToPath(new URL('./shots/', import.meta.url)), UPDATE = process.argv.includes('--update-shots');
 const notes = [];
 const server = await preview({ preview: { port: PORT, strictPort: true }, logLevel: 'silent' });
@@ -26,11 +39,12 @@ const browser = await chromium.launch({
 });
 
 const results = [];
-async function check(name, run, { viewport = { width: 390, height: 844 }, colorScheme = 'light', permissions = [] } = {}) {
+async function check(name, run, { viewport = { width: 390, height: 844 }, colorScheme = 'light', permissions = [], seed = true, mouse = false } = {}) {
   if (process.env.ONLY && !new RegExp(process.env.ONLY).test(name)) return;   // ONLY=hidden npm run smoke: just those
-  const ctx = await browser.newContext({ viewport, colorScheme, permissions, hasTouch: true, reducedMotion: 'reduce', locale: 'fr-FR', timezoneId: 'Europe/Paris' });
+  const ctx = await browser.newContext({ viewport, colorScheme, permissions, hasTouch: !mouse, reducedMotion: 'reduce', locale: 'fr-FR', timezoneId: 'Europe/Paris' });
   const page = await ctx.newPage(), errors = [];
   await page.clock.setFixedTime(new Date('2026-10-19T10:00:00+02:00'));   // same dates on every run, for the shots
+  if (seed) await page.addInitScript(seedNotes, SEED);
   page.setDefaultTimeout(20000);
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => m.type() === 'error' && errors.push(m.text()));
@@ -38,7 +52,7 @@ async function check(name, run, { viewport = { width: 390, height: 844 }, colorS
     await page.goto(APP);
     await page.getByRole('button', { name: 'Passer', exact: true }).click();
     await page.waitForSelector('.sheet.welcome', { state: 'detached' });   // nothing left over the screen
-    await page.waitForSelector('#note-list .card');
+    await page.waitForSelector(seed ? '#note-list .card' : '#note-list .first-use');
     await run(page);
     if (errors.length) throw Error('console: ' + errors.join(' | '));
     results.push(['ok', name]);
@@ -79,10 +93,22 @@ const idbTexts = page => page.evaluate(() => new Promise(done => {
   };
 }));
 
-await check('first launch: two starter notes, Notes is the current tab', async page => {
-  expect(await page.locator('#note-list .card').count() === 2, 'two starter notes');
+await check('first launch: no sample notes, one invitation; the guide is in Aide; the first note takes its place', async page => {
+  expect(!(await page.locator('#note-list .card').count()), 'no notes in the workspace');
   expect(await page.getAttribute('#nav-notes', 'aria-current') === 'page', 'Notes current');
-});
+  expect(!(await page.locator('.ambient').count()), 'plain ground once the welcome is gone');
+  await page.getByRole('button', { name: 'Lire le guide' }).click();
+  await page.waitForSelector('.sheet[data-mode="guide"] .guide-text:has-text("Raccourcis clavier")');
+  await page.click('#sheet-close');
+  await page.waitForSelector('.sheet', { state: 'detached' });
+  expect(!(await page.locator('#note-list .card').count()), 'reading the guide made no note');
+  await page.click('.first-action.is-main');
+  await page.waitForSelector('.editor.open');
+  await page.fill('.editor-title', 'Première');
+  await page.click('.editor-dock .fab');
+  await page.waitForSelector('#note-list .card-open:has-text("Première")');
+  expect(!(await page.locator('.first-use').count()), 'the invitation leaves with the first note');
+}, { seed: false });
 
 await check('create: + keeps the dock, opens Créer, a note is written and listed', async page => {
   await page.click('#fab');
@@ -244,11 +270,86 @@ await check('left hand: Gaucher puts the + on the left of the navigation', async
   expect(fab.x < nav.x, `+ at ${fab.x}, navigation at ${nav.x}`);
 });
 
-await check('Quoi de neuf: reopens from Réglages with the installed version', async page => {
+await check('Quoi de neuf: reopens from Réglages with the installed version, said once', async page => {
   await page.click('#nav-settings');
   await page.getByRole('button', { name: /Quoi de neuf/ }).click();
   await page.waitForSelector('.sheet[data-mode="news"] .version-pill.is-new');
+  expect(!(await page.locator('.sheet[data-mode="news"] .release').count()), 'one version: no second header repeating the summary');
+  expect(await page.evaluate(() => document.querySelector('.sheet .sheet-body').scrollTop) === 0, 'opens at the top');
 });
+
+await check('phone sheet: from the bottom edge, the dock steps aside, a pull on the handle closes it', async page => {
+  await page.click('#nav-settings');
+  await page.waitForSelector('.sheet[data-mode="settings"]');
+  const box = await page.locator('.sheet').boundingBox();
+  expect(Math.abs(box.y + box.height - 844) < 2, 'sheet ends at the bottom edge: ' + (box.y + box.height));
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.main-dock')).visibility === 'hidden');
+  const head = await page.locator('.sheet-head h2').boundingBox();
+  await page.mouse.move(head.x + 10, head.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(head.x + 10, head.y + 70, { steps: 4 });
+  await page.mouse.up();
+  expect(await page.locator('.sheet[data-mode="settings"]').count() === 1, 'a short pull springs back');
+  await page.waitForTimeout(300);
+  await page.mouse.move(head.x + 10, head.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(head.x + 10, head.y + 200, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForSelector('.sheet', { state: 'detached' });
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.main-dock')).visibility === 'visible');
+});
+
+await check('editor: one bar — Aa swaps the tools for formatting; templates sit in the note and go at the first letter', async page => {
+  await page.click('#fab');
+  await page.click('#create-note');
+  await page.waitForSelector('.editor.open .starters .starter');
+  const placeholder = await page.locator('textarea.editor-text').boundingBox(), starters = await page.locator('.starters').boundingBox();
+  expect(starters.y > placeholder.y && starters.y < 400, 'templates under the placeholder, in the note');
+  await page.click('textarea.editor-text');
+  await page.getByRole('button', { name: 'Mise en forme' }).click();
+  await page.waitForSelector('.format-strip');
+  expect(!(await page.locator('#format-bar [aria-label="Joindre une photo, un audio ou un PDF"]').count()), 'formatting replaces the note tools');
+  const rows = await page.evaluate(() => new Set([...document.querySelectorAll('#format-bar .island, #format-bar .fab')].map(e => Math.round(e.getBoundingClientRect().bottom))).size);
+  expect(rows === 1, 'a single row at the bottom, got ' + rows);
+  await page.keyboard.type('x');
+  await page.waitForSelector('.starters', { state: 'detached' });
+});
+
+await check('pinned: a shelf on top that folds away; the other notes follow', async page => {
+  await page.getByRole('button', { name: 'Actions : Comment utiliser' }).click();
+  await page.getByRole('button', { name: 'Épingler', exact: true }).click();
+  const shelf = page.locator('#note-list button.is-toggle:has-text("Épinglées")');
+  await shelf.waitFor();
+  expect(await page.locator('#note-list .list-heading:has-text("Récentes")').count() === 1, 'then the recent notes');
+  await shelf.click();
+  expect(await shelf.getAttribute('aria-expanded') === 'false', 'folded');
+  await page.waitForFunction(() => document.querySelectorAll('#note-list .card').length === 1);
+});
+
+await check('compact list: one line per note, under its title and date', async page => {
+  await page.getByRole('button', { name: 'Afficher en liste compacte' }).click();
+  await page.waitForSelector('#note-list.is-compact .card-body.is-line');
+  const h = await page.locator('#note-list .card').first().boundingBox();
+  expect(h.height < 80, 'a compact row is short: ' + h.height);
+});
+
+await check('mouse: hovering a note offers pin, move and delete', async page => {
+  await page.hover('#note-list .card:has-text("Bienvenue")');
+  await page.getByRole('button', { name: 'Épingler : Bienvenue' }).click();
+  await page.waitForSelector('#note-list button.is-toggle:has-text("Épinglées")');
+  await page.hover('#note-list .card:has-text("Bienvenue")');
+  await page.getByRole('button', { name: 'Déplacer : Bienvenue' }).click();
+  await page.waitForSelector('.layer[data-mode="picker"]');
+}, { viewport: { width: 1180, height: 820 }, mouse: true });
+
+await check('tablet: Réglages in a side panel down to the dock line, the dock beside it (never under it)', async page => {
+  await page.click('#nav-settings');
+  await page.waitForSelector('.sheet[data-drawer][data-mode="settings"]');
+  await page.waitForTimeout(500);
+  const panel = await page.locator('.sheet').boundingBox(), dock = await page.locator('.main-dock .island').boundingBox(), fab = await page.locator('#fab').boundingBox();
+  expect(Math.max(dock.x + dock.width, fab.x + fab.width) <= panel.x, `dock ends at ${fab.x + fab.width}, panel starts at ${panel.x}`);
+  expect(Math.abs(panel.y + panel.height - (fab.y + fab.height)) < 12, 'panel and dock end on the same line');
+}, { viewport: { width: 1180, height: 820 } });
 
 await check('select with S, delete, then undo', async page => {
   await page.focus('#note-list .card-open');

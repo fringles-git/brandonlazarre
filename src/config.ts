@@ -1,4 +1,4 @@
-import type { ChangeKind, Note, Prefs } from './types';
+import type { ChangeKind, Prefs } from './types';
 
 /** Tunables — one place for every magic number. */
 export const CONFIG = {
@@ -16,6 +16,7 @@ export const CONFIG = {
   swipeMax: 96,
   pullToSearch: 72,
   editorDragClose: 96,
+  sheetDragClose: 96,     // pulling a sheet down by its handle this far closes it
   backupNagDays: 14,
   ocrMaxSide: 2000,
   reminderPollMs: 30000,
@@ -48,7 +49,7 @@ export const KIND_ICON: Record<string, string> = {
 
 /** Semantic tones (system colors): same meaning everywhere — red records & deletes, orange dates, green photos… */
 export const KIND_TONE: Record<string, string> = {
-  all: 'yellow', week: 'purple', study: 'indigo', lists: 'blue', dated: 'orange', links: 'teal', photos: 'green',
+  all: 'gray', week: 'purple', study: 'indigo', lists: 'blue', dated: 'orange', links: 'teal', photos: 'green',
   audio: 'pink', pdfs: 'red', none: 'gray', locked: 'gray', trash: 'red', map: 'teal',
 };
 
@@ -57,7 +58,7 @@ export const TAB_LABEL: Record<string, string> = {
   audio: 'Notes vocales', pdfs: 'PDF', study: 'À réviser', none: 'Sans dossier', trash: 'Corbeille', locked: 'Notes masquées',
 };
 
-/** What an empty note can become (¦ = caret). Shown as chips while the note is empty. */
+/** What an empty note can become (¦ = caret). Shown in the note, under the placeholder, while it is empty. */
 export const TEMPLATES = [
   { id: 'list', label: 'Liste', icon: 'checklist', tone: 'blue', title: () => '', body: '- [ ] ¦' },
   { id: 'card', label: 'Carte à réviser', icon: 'study', tone: 'indigo', title: () => '', body: '¦ :: ' },
@@ -73,23 +74,24 @@ export const TEMPLATES = [
   },
 ] as const;
 
-export const HINTS: { id: string; text: string; fine?: boolean }[] = [
-  { id: 'pull', text: 'Tirez la liste vers le bas pour chercher' },
-  { id: 'select', text: 'Appui long sur une note pour en sélectionner plusieurs' },
+/** One tip at a time on the home screen. `fine`: mouse and keyboard only; `touch`: touch screens only. */
+export const HINTS: { id: string; text: string; fine?: boolean; touch?: boolean }[] = [
+  { id: 'select', text: 'Appui long sur une note pour en sélectionner plusieurs', touch: true },
   { id: 'select-key', text: 'Touche S pour sélectionner plusieurs notes', fine: true },
-  { id: 'swipe', text: 'Glissez une note pour l’épingler ou la supprimer' },
+  { id: 'swipe', text: 'Glissez une note pour l’épingler ou la supprimer', touch: true },
   { id: 'paste', text: 'Collez une image ou un lien pour en faire une note', fine: true },
   { id: 'links', text: 'Écrivez [[Titre]] pour relier deux notes' },
   { id: 'cards', text: 'Écrivez « Question :: Réponse » pour créer une carte à réviser' },
   { id: 'hidden', text: '⋮ → Masquer range une note dans Notes masquées' },
 ];
 
+/** The guided tour: one short line per tool, beside it. */
 export const TOUR = [
-  { target: '#fab', title: 'Créer', text: '**+** ouvre trois choix : **Note**, **Vocal** ou **Importer** (photo, PDF, fichier). Une note vide propose ensuite : liste, carte à réviser, réunion…', hints: ['paste'] },
-  { target: '#nav-island', title: 'Naviguer', text: '**Notes** revient à l’accueil, **Bibliothèque** range dossiers, étiquettes et collections, **Recherche** cherche partout, **Réglages** règle l’app.', hints: ['hidden', 'pull'] },
-  { target: '#view-tools', title: 'Affichage', text: 'En haut : **cartes ou liste** et **trier**. Pour ne voir que les photos, listes ou dates : **Recherche** ou **Bibliothèque**.', hints: [] },
-  { target: '#note-list .card', title: 'Vos notes', text: 'Touchez pour ouvrir, **⋮** pour les actions. Glissez à droite pour épingler, à gauche pour supprimer ; **appui long** (ou **S** au clavier) pour en sélectionner plusieurs.', hints: ['select', 'swipe'] },
-  { target: null, title: 'Dans une note', text: 'En bas : **Aa** met en forme, **☑** ajoute une case, **📎** joint un fichier, **⋮** pour le reste, **✓** termine. Glissez la note vers le bas pour la fermer.', hints: ['links', 'cards'] },
+  { target: '#fab', title: 'Créer', text: '**+** : **Note**, **Vocal** ou **Importer**. Une note vide propose liste, réunion, carte à réviser…', hints: ['paste'] },
+  { target: '#nav-island', title: 'Naviguer', text: '**Notes**, **Bibliothèque** (dossiers, étiquettes), **Recherche** et **Réglages**.', hints: ['hidden'] },
+  { target: '#view-tools', title: 'Affichage', text: '**Cartes ou liste compacte**, et **trier**.', hints: [] },
+  { target: '#note-list .card', title: 'Vos notes', text: 'Glissez à droite pour épingler, à gauche pour supprimer ; **appui long** (ou **S**) pour en choisir plusieurs.', hints: ['select', 'swipe'] },
+  { target: null, title: 'Dans une note', text: 'En bas : **Aa** met en forme, **📎** joint un fichier, **✓** termine. Glissez la note vers le bas pour la fermer.', hints: ['links', 'cards'] },
 ];
 
 export const CREDITS: [string, string][] = [
@@ -110,6 +112,40 @@ export const CHANGE_KINDS = [
 export interface Release { date: string; legacy?: string; changes: Partial<Record<ChangeKind, string[]>>; version: string }
 
 const RELEASES: Omit<Release, 'version'>[] = [
+  {
+    date: '2026-10-21',
+    changes: {
+      new: [
+        'Premier lancement sans notes d’exemple : l’accueil propose Note, Liste, Vocal ou Importer, et le guide se lit dans Réglages › Aide',
+        'Épinglées en tête de la liste, repliables d’un geste',
+        'À la souris : épingler, déplacer ou supprimer une note sans ouvrir son menu',
+        'Au clavier : ⌘K ou / cherche, N crée une note — rappelés dans la recherche',
+      ],
+      better: [
+        'Téléphone : une note par ligne, le texte se lit en lignes entières ; la vue liste devient compacte (titre, date, une ligne)',
+        'Tablette et ordinateur : la grille remplit l’écran ; à côté d’une note, la liste garde une colonne lisible',
+        'Éditeur : une seule barre en bas ; Aa y remplace les outils par la mise en forme',
+        'Une note vide propose ses modèles dans la note même, sous « Écrire quelque chose… » ; ils partent à la première lettre',
+        '« Enregistré » s’affiche un instant en haut de la note, puis s’efface',
+        'Réglages, À propos et Quoi de neuf : de vraies feuilles venues du bas, avec une poignée pour les tirer vers le bas',
+        'Sur tablette, les panneaux descendent jusqu’en bas et la barre se range à côté',
+        'Les messages s’affichent en haut : plus rien ne s’empile sur les barres du bas',
+        'Fond uni, cartes pleines, sans ombres : le texte se détache ; le fond coloré reste pour l’accueil',
+        'Une seule échelle de texte ; textes secondaires et onglets plus lisibles',
+        'L’ambre est réservé à la création et aux notes épinglées ; le contour du focus est sombre et se voit partout',
+        'Récap : « À faire » compte les tâches restantes ; sur téléphone, il tient sur une ligne qui défile',
+        'Le dossier d’une note se voit sur sa carte, par un liseré de sa couleur',
+        'Bibliothèque plus calme : moins de contours et d’ombres',
+        'Contraste renforcé quand l’appareil le demande',
+      ],
+      fix: [
+        'Plus de « … » isolé au-dessus de la barre de progression : le texte s’estompe',
+        'Quoi de neuf ne répète plus la version et ses compteurs',
+        'Bannière « Tirez la liste vers le bas » retirée ; les astuces tactiles ne s’affichent plus à la souris',
+        'La barre du bas ne saute plus quand la barre d’adresse du navigateur apparaît',
+      ],
+    },
+  },
   {
     date: '2026-10-19',
     changes: {
@@ -368,23 +404,8 @@ export const releasesSince = (v: string) => {
   return r ? RELEASE_LIST.slice(0, RELEASE_LIST.indexOf(r)) : [];
 };
 
-/* ---------- Starter notes ---------- */
-export const GUIDE_TITLE = 'Comment utiliser';
-const WELCOME = `Notes garde vos idées, listes, photos et messages vocaux **sur cet appareil** : pas de compte, rien n’est envoyé sur le cloud, et tout fonctionne ==hors ligne==.
-
-## Premiers pas
-- [ ] Lire [[${GUIDE_TITLE}]]
-- [ ] Créer une note avec **+**
-- [ ] Ranger une note dans un dossier
-- [ ] Exporter une première sauvegarde
-
-## Bon à savoir
-- La visite guidée, le guide et les nouveautés sont dans **Réglages → Aide**.
-- Ajoutez Notes à l’écran d’accueil : elle s’ouvre comme une app et le navigateur ne peut plus effacer vos notes.
-
-Bonne écriture !`;
-
-const GUIDE = `# Créer
+/* ---------- Guide (Réglages › Aide), read in a sheet: the workspace holds only the user's notes ---------- */
+export const GUIDE = `# Créer
 - **+** : **Note**, **Vocal** ou **Importer** (photo, PDF, Markdown, EPUB) — ou appuyez sur **+** et glissez jusqu’au choix
 - Note vide : choisissez **Liste**, **Carte à réviser**, **Réunion**, **Projet** ou **Journal du jour**
 - Collez une image ou un lien sur l’accueil : il devient une note
@@ -394,7 +415,7 @@ Touchez le texte pour l’écrire ; il se met en forme quand vous sortez. **Aa**
 - **H** titre (touchez encore : sous-titre, intertitre)
 - **B** gras, **I** italique, surligneur ==surligné==
 - Listes à puces, numérotées ou à cocher
-- **[[ ]]** lien vers une autre note, comme [[Bienvenue]]
+- Un titre entre doubles crochets : lien vers une autre note, comme [[Idées de voyage]]
 - **::** carte à réviser
 
 **Entrée** ajoute un élément à la liste ; **Entrée** sur un élément vide termine la liste.
@@ -405,13 +426,14 @@ Ctrl sur Windows, ⌘ sur Mac :
 - Ctrl + Maj + 7 / 8 / 9 : liste numérotée / à puces / à cocher
 - Ctrl + K : lien · Ctrl + Maj + K : carte à réviser
 - Ctrl + Alt + 1 / 2 / 3 : titres
-- Sur l’accueil : **N** note, **L** liste, **D** journal du jour, **/** rechercher, **S** sélectionner (Espace coche une note, Échap termine)
+- Sur l’accueil : **N** note, **L** liste, **D** journal du jour, **/** ou **Ctrl + K** rechercher, **S** sélectionner (Espace coche une note, Échap termine)
 - **Alt + ↑ / ↓** sur une note épinglée : la monter ou la descendre
 
 # Organiser
 - Glissez une note à droite : **épingler** ; à gauche : **supprimer**
 - **Appui long**, ou **S** au clavier : sélectionner plusieurs notes (déplacer, fusionner, partager)
-- **Clic droit** sur une note, à la souris : son menu
+- À la souris, survolez une note : **épingler**, **déplacer**, **supprimer** ; **clic droit** : son menu
+- Les notes épinglées restent en tête ; touchez **Épinglées** pour les replier
 - **⋮** sur une note : épingler, déplacer, rappel, partager, masquer
 - **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (chiffrées, code PIN ou Face ID / empreinte), corbeille
 
@@ -422,12 +444,9 @@ Ctrl sur Windows, ⌘ sur Mac :
 Une ligne « Question :: Réponse » devient une carte. **⋮ → Réviser** vous interroge au bon moment.
 
 # Sauvegarder
-Rien n’est envoyé sur le cloud : exportez parfois une sauvegarde (**Réglages → Exporter les notes**), ou tout en Markdown pour Obsidian. **⋮ → Envoyer un lien** partage une note sans serveur. Chaque note garde ses 10 dernières versions.`;
+Rien n’est envoyé sur le cloud : exportez parfois une sauvegarde (**Réglages → Exporter les notes**), ou tout en Markdown pour Obsidian. **⋮ → Envoyer un lien** partage une note sans serveur. Chaque note garde ses 10 dernières versions.
 
-export const STARTER_NOTES: Pick<Note, 'title' | 'body'>[] = [
-  { title: GUIDE_TITLE, body: GUIDE },
-  { title: 'Bienvenue', body: WELCOME },
-];
+Ajoutez Notes à l’écran d’accueil : elle s’ouvre comme une app, et le navigateur ne peut plus effacer vos notes.`;
 
 export const MSG = {
   trashed: 'Note placée dans la corbeille',

@@ -1,0 +1,16 @@
+[
+ {
+  "id": 1792396800000,
+  "title": "Comment utiliser",
+  "body": "# Créer\n- **+** : **Note**, **Vocal** ou **Importer** (photo, PDF, Markdown, EPUB) — ou appuyez sur **+** et glissez jusqu’au choix\n- Note vide : choisissez **Liste**, **Carte à réviser**, **Réunion**, **Projet** ou **Journal du jour**\n- Collez une image ou un lien sur l’accueil : il devient une note\n\n# Mettre en forme\nTouchez le texte pour l’écrire ; il se met en forme quand vous sortez. **Aa**, en bas de la note, ouvre les outils :\n- **H** titre (touchez encore : sous-titre, intertitre)\n- **B** gras, **I** italique, surligneur ==surligné==\n- Listes à puces, numérotées ou à cocher\n- **[[ ]]** lien vers une autre note, comme [[Bienvenue]]\n- **::** carte à réviser\n\n**Entrée** ajoute un élément à la liste ; **Entrée** sur un élément vide termine la liste.\n\n# Raccourcis clavier\nCtrl sur Windows, ⌘ sur Mac :\n- Ctrl + B : gras · Ctrl + I : italique · Ctrl + Maj + H : surligner\n- Ctrl + Maj + 7 / 8 / 9 : liste numérotée / à puces / à cocher\n- Ctrl + K : lien · Ctrl + Maj + K : carte à réviser\n- Ctrl + Alt + 1 / 2 / 3 : titres\n- Sur l’accueil : **N** note, **L** liste, **D** journal du jour, **/** rechercher, **S** sélectionner (Espace coche une note, Échap termine)\n- **Alt + ↑ / ↓** sur une note épinglée : la monter ou la descendre\n\n# Organiser\n- Glissez une note à droite : **épingler** ; à gauche : **supprimer**\n- **Appui long**, ou **S** au clavier : sélectionner plusieurs notes (déplacer, fusionner, partager)\n- **Clic droit** sur une note, à la souris : son menu\n- **⋮** sur une note : épingler, déplacer, rappel, partager, masquer\n- **Bibliothèque** : dossiers en couleur, #étiquettes, collections, Notes masquées (chiffrées, code PIN ou Face ID / empreinte), corbeille\n\n# Retrouver\n**Recherche** lit aussi le texte des PDF, des photos et des notes vocales ; **Ajouter le texte**, sur une photo, un PDF ou un enregistrement, le met dans la note. **Enregistrer** garde une recherche comme collection. En haut de l’accueil : cartes ou liste, et trier.\n\n# Réviser\nUne ligne « Question :: Réponse » devient une carte. **⋮ → Réviser** vous interroge au bon moment.\n\n# Sauvegarder\nRien n’est envoyé sur le cloud : exportez parfois une sauvegarde (**Réglages → Exporter les notes**), ou tout en Markdown pour Obsidian. **⋮ → Envoyer un lien** partage une note sans serveur. Chaque note garde ses 10 dernières versions.",
+  "created": 1792396800000,
+  "updated": 1792396800000
+ },
+ {
+  "id": 1792396800001,
+  "title": "Bienvenue",
+  "body": "Notes garde vos idées, listes, photos et messages vocaux **sur cet appareil** : pas de compte, rien n’est envoyé sur le cloud, et tout fonctionne ==hors ligne==.\n\n## Premiers pas\n- [ ] Lire [[Comment utiliser]]\n- [ ] Créer une note avec **+**\n- [ ] Ranger une note dans un dossier\n- [ ] Exporter une première sauvegarde\n\n## Bon à savoir\n- La visite guidée, le guide et les nouveautés sont dans **Réglages → Aide**.\n- Ajoutez Notes à l’écran d’accueil : elle s’ouvre comme une app et le navigateur ne peut plus effacer vos notes.\n\nBonne écriture !",
+  "created": 1792396800001,
+  "updated": 1792396800001
+ }
+]
