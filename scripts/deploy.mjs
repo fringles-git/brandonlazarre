@@ -106,4 +106,5 @@ publish(dir => fs.cpSync(dist, dir, { recursive: true }),
 
 step('Waiting for the live site');
 await verify(info.build);
-console.log(`\n✓ ${SITE} — Notes ${info.version}. Open copies offer “Nouvelle version disponible · Recharger”.`);
+console.log(flag('--dry-run') ? '\n✓ Dry run: tested and ready, nothing published.'
+  : `\n✓ ${SITE} — Notes ${info.version}. Open copies offer “Nouvelle version disponible · Recharger”.`);
