@@ -227,6 +227,11 @@ await check('hidden notes: Face ID or fingerprint opens them (virtual authentica
   await page.click('#nav-settings');
   const sw = page.getByRole('switch', { name: /Face ID ou empreinte/ });
   await sw.click();                                   // notes closed: asks the PIN first
+  await page.waitForSelector('.layer[data-mode="pin"]');
+  expect(await page.evaluate(() => {                  // over Réglages, not hidden behind it
+    const l = document.querySelector('.layer[data-mode="pin"]'), r = l.getBoundingClientRect();
+    return l.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+  }), 'the PIN prompt is on top of Réglages');
   await page.fill('.pin-input', '1234');
   await page.keyboard.press('Enter');
   await page.waitForSelector('.toast:has-text("touchez à nouveau")');
@@ -350,6 +355,169 @@ await check('tablet: Réglages in a side panel down to the dock line, the dock b
   expect(Math.max(dock.x + dock.width, fab.x + fab.width) <= panel.x, `dock ends at ${fab.x + fab.width}, panel starts at ${panel.x}`);
   expect(Math.abs(panel.y + panel.height - (fab.y + fab.height)) < 12, 'panel and dock end on the same line');
 }, { viewport: { width: 1180, height: 820 } });
+
+/* ---------- Audit 21 oct. (AUDIT.md): one check per confirmed finding ---------- */
+await check('UX-07: History closed, then the note, within the panel’s exit — no blank screen, no React error', async page => {
+  await openNote(page, 'Bienvenue');
+  await page.click('#note-more');
+  await page.getByRole('button', { name: /Historique/ }).click();
+  await page.waitForSelector('.layer[data-inspector]');
+  await page.evaluate(() => new Promise(done => {   // two clicks inside the 200 ms the panel takes to leave
+    document.querySelector('.panel-close').click();
+    setTimeout(() => { document.querySelector('[aria-label="Fermer la note"]').click(); done(); }, 30);
+  }));
+  await page.waitForTimeout(600);
+  expect(await page.locator('#note-list .card').count() === 2, 'the list is back');
+}, { viewport: { width: 1348, height: 936 } });
+
+await check('UX-01: a backup shows what it changes before writing; Prendre la sauvegarde keeps mine in history; Annuler undoes it all', async page => {
+  const mine = SEED.find(n => n.title === 'Bienvenue');
+  const backup = { app: 'notes', version: 1, folders: ['Voyages'], collections: [{ name: 'Importée', tab: 'all', query: 'train', kind: null }], notes: [
+    { ...mine, body: 'CONTENU DE LA SAUVEGARDE', updated: mine.updated + 1000, versions: [] },
+    { id: 4242, title: 'Venue de la sauvegarde', body: 'train de nuit', folder: 'Voyages', created: 1, updated: 1, atts: [], versions: [] },
+  ] };
+  await page.click('#nav-settings');
+  await page.setInputFiles('#backup-input', { name: 'sauvegarde.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+  await page.waitForSelector('.layer[data-mode="import-review"]:has-text("1 note nouvelle"):has-text("1 note différente")');
+  await page.locator('.layer[data-mode="import-review"] .text-btn', { hasText: 'Annuler' }).click();   // nothing written yet
+  await page.waitForSelector('.layer[data-mode="import-review"]', { state: 'detached' });
+  await page.click('#sheet-close');
+  expect(!(await page.locator('#note-list .card-open:has-text("Venue de la sauvegarde")').count()), 'nothing imported before Importer');
+  const take = async () => {
+    await page.click('#nav-settings');
+    await page.setInputFiles('#backup-input', { name: 'sauvegarde.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+    await page.getByRole('radio', { name: /Prendre la sauvegarde/ }).click();
+    await page.click('.import-go');
+    await page.waitForSelector('.toast:has-text("1 note ajoutée"):has-text("remplacée")');
+    await page.click('#sheet-close');
+  };
+  await take();
+  await page.waitForSelector('#note-list .card:has-text("CONTENU DE LA SAUVEGARDE")');
+  await page.waitForSelector('#note-list .card-open:has-text("Venue de la sauvegarde")');
+  await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await page.waitForSelector('.toast:has-text("Import annulé")');
+  await page.waitForSelector('#note-list .card:has-text("Notes garde vos idées")');
+  expect(!(await page.locator('#note-list .card-open:has-text("Venue de la sauvegarde")').count()), 'Annuler removed the imported note');
+  await take();   // again, and keep it: my text is in the history
+  await openNote(page, 'Bienvenue');
+  await page.click('#note-more');
+  await page.getByRole('button', { name: /Historique/ }).click();
+  await page.waitForSelector('.layer[data-mode="history"] .row:has-text("Notes garde vos idées")');
+});
+
+await check('UX-01: Garder les deux adds the backup’s copy beside mine; Annuler removes it and the new note', async page => {
+  const mine = SEED.find(n => n.title === 'Bienvenue');
+  const backup = { notes: [{ ...mine, body: 'Autre texte', versions: [] }, { id: 4243, title: 'Nouvelle', body: 'x', created: 1, updated: 1, atts: [], versions: [] }] };
+  await page.click('#nav-settings');
+  await page.setInputFiles('#backup-input', { name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+  await page.waitForSelector('.layer[data-mode="import-review"] [role="radio"][aria-checked="true"]:has-text("Garder les deux")');
+  await page.click('.import-go');
+  await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await page.waitForSelector('.toast:has-text("Import annulé")');
+  await page.click('#sheet-close');
+  expect(await page.locator('#note-list .card').count() === 2, 'back to the two notes');
+});
+
+await check('UX-02: renaming a folder keeps the collections searched in it', async page => {
+  await page.getByRole('button', { name: 'Actions : Bienvenue' }).click();
+  await page.getByRole('button', { name: /^Déplacer/ }).click();
+  await page.locator('.layer[data-mode="picker"] .row', { hasText: 'Idées' }).click();
+  await page.click('#nav-library');
+  await page.click('.lib-folder:has-text("Idées")');
+  await page.click('#search-button');
+  await page.fill('#search-input', 'garde');
+  await page.getByRole('button', { name: 'Enregistrer cette recherche comme collection' }).click();
+  await page.click('.search-dock .fab');
+  await page.click('#nav-library');
+  await page.getByRole('button', { name: 'Modifier les dossiers et collections' }).click();
+  await page.getByRole('button', { name: 'Renommer Idées' }).click();
+  await page.fill('[aria-label="Nouveau nom du dossier"]', 'Projets perso');
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Modifier les dossiers et collections' }).click();
+  await page.reload();
+  await page.waitForSelector('#note-list .card');
+  await page.click('#nav-library');
+  await page.locator('.lib .chip', { hasText: 'garde' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#note-list .card').length === 1);
+});
+
+await check('UX-04: the JSON backup carries the collections (and never the hidden notes)', async page => {
+  await page.click('#search-button');
+  await page.fill('#search-input', 'surligneur');
+  await page.getByRole('button', { name: 'Enregistrer cette recherche comme collection' }).click();
+  await page.click('.search-dock .fab');
+  await page.click('#nav-settings');
+  const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /^Exporter les notes/ }).click()]);
+  const data = JSON.parse(fs.readFileSync(await file.path(), 'utf8'));
+  expect(data.collections?.length === 1 && data.collections[0].query === 'surligneur', 'collections: ' + JSON.stringify(data.collections));
+  expect(data.notes.length === 2, 'both notes');
+});
+
+await check('UX-03: radio groups — arrows choose, one Tab stop per group', async page => {
+  await page.click('#nav-settings');
+  const auto = page.getByRole('radio', { name: 'Auto' });
+  await auto.focus();
+  await page.keyboard.press('ArrowRight');
+  expect(await page.getByRole('radio', { name: 'Clair' }).getAttribute('aria-checked') === 'true', 'ArrowRight chooses Clair');
+  expect(await page.evaluate(() => document.activeElement.textContent.includes('Clair')), 'and moves the focus there');
+  const stops = await page.evaluate(() => [...document.querySelectorAll('.sheet [role="radiogroup"]')].map(g => g.querySelectorAll('[role="radio"][tabindex="0"]').length));
+  expect(stops.every(n => n === 1), 'one Tab stop per group: ' + stops);
+  await page.keyboard.press('End');
+  expect(await page.getByRole('radio', { name: 'Sombre' }).getAttribute('aria-checked') === 'true', 'End chooses the last');
+});
+
+await check('CODE-03: a new PIN is 4 to 8 digits — letters are refused', async page => {
+  await page.click('#nav-library');
+  await page.getByRole('button', { name: /Notes masquées/ }).click();
+  await page.fill('.pin-input', 'abcd');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.toast:has-text("4 à 8 chiffres")');
+  expect(await page.locator('#pin-title:has-text("Créer un code PIN")').count() === 1, 'still asking for a new PIN');
+});
+
+await check('UX-05: History shows a version first; only “Restaurer cette version” changes the note', async page => {
+  await openNote(page, 'Bienvenue');
+  await page.click('#note-more');
+  await page.getByRole('button', { name: /Historique/ }).click();
+  await page.locator('.layer[data-mode="history"] .row', { hasText: 'Version 2' }).click();
+  await page.waitForSelector('.version-preview:has-text("Version 2 de Bienvenue")');
+  expect(await page.locator('#note-view:has-text("Notes garde vos idées")').count() === 1, 'the note is unchanged after a tap');
+  await page.getByRole('button', { name: 'Restaurer cette version' }).click();
+  await page.waitForSelector('.toast:has-text("restaurée")');
+  await page.waitForSelector('#note-view:has-text("Version 2 de Bienvenue")');
+});
+
+await check('UX-06: an empty view says which view and why, with the action that helps', async page => {
+  await page.click('#search-button');
+  await page.fill('#search-input', 'zzzz');
+  await page.waitForSelector('.empty:has-text("Aucune note ne contient « zzzz »")');
+  await page.locator('.empty .text-btn', { hasText: 'Effacer la recherche' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#note-list .card').length === 2);
+  await page.click('.search-dock .fab');
+  await page.click('#nav-library');
+  await page.click('.lib-folder:has-text("Travail")');
+  await page.waitForSelector('.empty:has-text("Ce dossier est vide.")');
+});
+
+await check('CODE-01: a write that fails is shown and retried — never a silent success', async page => {
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    window.__restore = () => { IDBObjectStore.prototype.put = put; };
+    IDBObjectStore.prototype.put = function (...a) { if (this.name === 'prefs') throw new DOMException('disque', 'UnknownError'); return put.apply(this, a); };
+  });
+  await page.click('#nav-settings');
+  await page.getByRole('radio', { name: 'Sombre' }).click();
+  await page.waitForSelector('.toast:has-text("pas été enregistré")');
+  await page.click('#sheet-close');
+  await page.waitForSelector('.pill.danger:has-text("pas enregistrés")');
+  await page.evaluate(() => window.__restore());
+  await page.click('.pill.danger:has-text("pas enregistrés")');
+  await page.waitForSelector('.toast:has-text("Tout est enregistré")');
+  await page.waitForSelector('.pill.danger:has-text("pas enregistrés")', { state: 'detached' });
+  await page.reload();
+  await page.waitForSelector('#note-list .card');
+  expect(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', 'the retried setting survived the reload');
+});
 
 await check('select with S, delete, then undo', async page => {
   await page.focus('#note-list .card-open');

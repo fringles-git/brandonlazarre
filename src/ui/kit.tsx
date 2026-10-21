@@ -117,16 +117,27 @@ export function InlineForm({ onSubmit, button, autoFocus = true, inputProps }: {
 
 export const NewFolder = () => <InlineForm onSubmit={submitFolder} button="Créer le dossier" inputProps={{ placeholder: 'Nom du dossier', 'aria-label': 'Nom du dossier' }} />;
 
+/** Radio groups behave as radio groups: one Tab stop (the chosen one), arrows and Home/End move and choose. */
+export function radioKeys(e: React.KeyboardEvent<HTMLElement>) {
+  const radios = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')], at = radios.indexOf(document.activeElement as HTMLElement);
+  const next = { ArrowRight: at + 1, ArrowDown: at + 1, ArrowLeft: at - 1, ArrowUp: at - 1, Home: 0, End: radios.length - 1 }[e.key];
+  if (next === undefined || at < 0) return;
+  e.preventDefault();
+  const target = radios[(next + radios.length) % radios.length];
+  target.focus();
+  target.click();
+}
+
 type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'sort' | 'dir';
 export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K; label: string; options: [Prefs[K], ReactNode][] }) {
   const value = useStore(s => s.prefs[pref]), at = Math.max(0, options.findIndex(([v]) => v === value));
   return (
     <>
       <h4 id={'seg-' + pref}>{label}</h4>
-      <div className="segmented" role="radiogroup" aria-labelledby={'seg-' + pref} style={{ '--i': at, '--n': options.length } as CSSProperties}>
+      <div className="segmented" role="radiogroup" aria-labelledby={'seg-' + pref} style={{ '--i': at, '--n': options.length } as CSSProperties} onKeyDown={radioKeys}>
         <span className="seg-thumb" aria-hidden="true" />
-        {options.map(([v, text]) => (
-          <button key={String(v)} role="radio" aria-checked={value === v} onClick={() => setPref(pref, v)}>{text}</button>
+        {options.map(([v, text], i) => (
+          <button key={String(v)} role="radio" aria-checked={value === v} tabIndex={i === at ? 0 : -1} onClick={() => setPref(pref, v)}>{text}</button>
         ))}
       </div>
     </>

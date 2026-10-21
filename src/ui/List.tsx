@@ -5,10 +5,10 @@ import type { Note } from '../types';
 import { CONFIG } from '../config';
 import { checkStats, dueCards, entities, parseCheck, plainText, snippet } from '../markdown';
 import { firstAtt, urlOf } from '../media';
-import { countIn, folderColor, inTrash, readableNotes, tabFolder, tabLabel, useStore, visibleNotes } from '../store';
+import { countIn, findCollection, folderColor, inTrash, readableNotes, tabFolder, tabLabel, useStore, visibleNotes } from '../store';
 import {
   changePin, createAndOpen, emptyTrash, fromTemplate, goHome, goLibrary, menuPin, menuTrash, onCard, open, openImport, openLayer, openNoteMenu,
-  openPicker, openSheet, setPref, setTab, toggleCardCheck, toggleSelected,
+  openPicker, openSheet, repairCollection, retryWrites, setPref, setQuery, setTab, toggleCardCheck, toggleKind, toggleSelected,
 } from '../actions';
 import { backupDue, currentHint, dismissHint, exportBackup, openGuide, playCard, startStudy, toggleRecording } from '../features';
 import { consumeClick } from '../gestures';
@@ -44,7 +44,7 @@ export function Header() {
 
 export function InfoBar() {
   const s = useStore(useShallow(s => ({
-    tab: s.prefs.tab, lastBackup: s.prefs.lastBackup, selecting: s.selecting, query: s.query, unlocked: s.hiddenUnlocked,
+    tab: s.prefs.tab, lastBackup: s.prefs.lastBackup, selecting: s.selecting, query: s.query, unlocked: s.hiddenUnlocked, storageError: s.storageError,
     trashCount: inTrash(s) ? countIn(s, 'trash') : 0,
     // Tips are about handling notes: they wait until there are a few
     hint: s.prefs.tab === 'all' && !s.selecting && !s.searchOpen && s.notes.filter(n => !n.deleted).length >= 3 ? currentHint(s.prefs, finePointer()) : null,
@@ -52,6 +52,7 @@ export function InfoBar() {
     backup: backupDue(s) && s.prefs.tab === 'all' && !s.selecting && !s.searchOpen,
   })));
   const pills = [
+    s.storageError && <button key="store" className="pill danger" onClick={retryWrites}>Des changements ne sont pas enregistrés · Réessayer</button>,
     s.trashCount > 0 && <button key="trash" className="pill danger" onClick={emptyTrash}>Vider la corbeille ({s.trashCount})</button>,
     /^[ftc]:/.test(s.tab) && !s.selecting && !s.query.trim() && <button key="ov" className="pill" onClick={() => openSheet('overview')}>Vue d’ensemble</button>,
     s.backup && <button key="backup" className="pill" onClick={exportBackup}>
@@ -257,9 +258,26 @@ const Card = memo(function Card({ note, inShelf, grip, selected, selecting, isOp
   );
 });
 
+/** An empty view says which view is empty and why, with the one action that helps there — never "write your first note"
+    when notes exist elsewhere (UX-06). A collection whose folder no longer exists says so and can be repaired. */
 function Empty() {
-  const filtered = useStore(s => !!s.query.trim() || !!s.searchKind), trash = useStore(inTrash);
-  return <div className="empty">{filtered ? 'Aucune note ne correspond.' : trash ? 'Corbeille vide.' : 'Aucune note. Touchez + pour écrire la première.'}</div>;
+  const s = useStore(useShallow(s => ({ tab: s.prefs.tab, query: s.query.trim(), kind: s.searchKind, folders: s.folders, collections: s.prefs.collections })));
+  const say = (text: React.ReactNode, action?: [string, () => void]) => (
+    <div className="empty" role="status"><p>{text}</p>{action && <button className="text-btn" onClick={action[1]}>{action[0]}</button>}</div>
+  );
+  if (s.query || s.kind) return say(s.query ? <>Aucune note ne contient « {s.query} »{s.kind ? ' dans ' + tabLabel(s.kind) : ''}.</> : 'Aucune note dans ' + tabLabel(s.kind!) + '.',
+    ['Effacer la recherche', () => { setQuery(''); if (s.kind) toggleKind(s.kind); }]);
+  const c = findCollection(s.tab, s.collections), folder = tabFolder(c ? c.tab : s.tab);
+  if (c && folder && !s.folders.includes(folder))
+    return say(<>Le dossier « {folder} » de cette collection n’existe plus.</>, ['Chercher dans toutes les notes', () => repairCollection(c.name)]);
+  if (c) return say('Aucune note ne correspond à cette collection pour l’instant.', ['Toutes les notes', goHome]);
+  if (s.tab === 'trash') return say('Corbeille vide.');
+  if (s.tab === 'locked') return say('Aucune note masquée. ⋮ › Masquer range une note ici, chiffrée.');
+  if (folder) return say('Ce dossier est vide.', ['Écrire une note ici', () => createAndOpen()]);
+  if (s.tab.startsWith('t:')) return say(`Plus aucune note avec #${s.tab.slice(2)}.`);
+  if (s.tab === 'none') return say('Toutes les notes sont rangées dans un dossier.');
+  if (s.tab !== 'all') return say('Aucune note dans ' + tabLabel(s.tab) + ' pour l’instant.');
+  return say('Aucune note visible ici.', ['Écrire une note', () => createAndOpen()]);
 }
 /** First use: the workspace starts empty — no tutorial notes — with one invitation that leaves with the first note. */
 function FirstUse() {

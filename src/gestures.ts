@@ -228,7 +228,7 @@ function onPointerOut(e: PointerEvent) {
 function trapTab(e: KeyboardEvent) {
   const layer = [...document.querySelectorAll<HTMLElement>('.layer[data-open]:not([data-inspector]), .sheet[data-open]')].pop();
   if (e.key !== 'Tab' || !layer) return false;
-  const items = [...layer.querySelectorAll<HTMLElement>('button:not([disabled]),input,[tabindex="0"]')].filter(el => el.offsetParent);
+  const items = [...layer.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"]),input,[tabindex="0"]')].filter(el => el.offsetParent);
   if (!items.length) return false;
   const first = items[0], last = items[items.length - 1], inside = layer.contains(document.activeElement);
   if (e.shiftKey && (document.activeElement === first || !inside)) { e.preventDefault(); last.focus(); return true; }

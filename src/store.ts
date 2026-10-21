@@ -20,7 +20,9 @@ export interface State {
   vault: Vault | null;   // keys of the encrypted hidden notes
   hiddenUnlocked: boolean;
   memOnly: boolean;
+  storageError: boolean;   // a write failed and waits to be retried (actions.ts, persistence)
   storageInfo: { used: number; persisted: boolean } | null;
+  importPlan: ImportPlan | null;   // a backup read and waiting for the user's choice (features.ts, importBackup)
   query: string;
   page: 'notes' | 'library';   // the two destinations of the dock; everything else opens over them
   searchOpen: boolean;
@@ -53,6 +55,15 @@ export interface State {
   newsSince: string | null;
 }
 
+/** What a backup would change, computed before anything is written. */
+export interface ImportPlan {
+  file: string;
+  added: Note[];                                  // notes this device doesn't have
+  conflicts: { mine: Note; theirs: Note }[];      // same note, different content
+  same: number;                                   // already here, identical
+  folders: string[]; colors: Record<string, number>; collections: Collection[];
+}
+
 export interface BeforeInstallPromptEvent extends Event {
   prompt(): void;
   userChoice: Promise<unknown>;
@@ -68,7 +79,9 @@ export const useStore = create<State>()(() => ({
   vault: null,
   hiddenUnlocked: false,
   memOnly: false,
+  storageError: false,
   storageInfo: null,
+  importPlan: null,
   query: '',
   page: 'notes',
   searchOpen: false,

@@ -67,7 +67,7 @@ export interface Prefs {
 export type SheetMode = 'study' | 'map' | 'overview' | 'settings' | 'about' | 'news' | 'guide';
 export type LayerMode =
   | 'create' | 'note-menu' | 'import' | 'list-actions' | 'ios-install' | 'picker'
-  | 'pin' | 'remind' | 'history' | 'sel-more' | 'outline' | 'sort';
+  | 'pin' | 'remind' | 'history' | 'sel-more' | 'outline' | 'sort' | 'import-review';
 export type PinStep = 'new' | 'auth' | 'change';
 
 export interface StudyItem { noteId: number; card: Flashcard }

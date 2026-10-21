@@ -13,16 +13,56 @@ import { addDevice, createVault, forget, isOpen as vaultOpen, openWithDevice, op
 import { stopRecording } from './features';
 import { caretTop, dayTime, focusAt, fullDay, haptic, plural, reducedMotion, replaceText } from './utils';
 
-/* ---------- Persistence ---------- */
+/* ---------- Persistence ----------
+   Nothing is shown as saved that isn't: a write that fails is kept, the screen says so until it goes through
+   (Réessayer, or the next write of the same thing), and an update waits for it. */
+const pending = { notes: new Set<number>(), prefs: new Map<string, unknown>(), deletes: new Set<number>() };
+function writeFailed() {
+  if (!get().storageError) set({ storageError: true });
+}
+const writeDone = () => { if (get().storageError && !pending.notes.size && !pending.prefs.size && !pending.deletes.size) set({ storageError: false }); };
 export function persist(n: Note) {
   if (get().memOnly) return Promise.resolve();
-  return toRecord(n, get().vault).then(putNote).then(() => undefined, (e: DOMException) => {
-    toast(e?.name === 'QuotaExceededError' ? 'Stockage plein : cette note n’a pas été enregistrée.' : 'Échec de l’enregistrement de la note.');
+  return toRecord(n, get().vault).then(putNote).then(() => { pending.notes.delete(n.id); writeDone(); }, (e: DOMException) => {
+    pending.notes.add(n.id);
+    writeFailed();
+    toast(e?.name === 'QuotaExceededError' ? 'Stockage plein : cette note n’a pas été enregistrée.' : 'Échec de l’enregistrement de la note.', retryWrites, 'Réessayer');
     throw e;
   });
 }
 const persistQuiet = (n: Note) => { persist(n).catch(() => {}); };
-const savePref = (id: string, data: unknown) => { if (!get().memOnly) putPref(id, data).catch(() => {}); };
+function savePref(id: string, data: unknown) {
+  if (get().memOnly) return;
+  putPref(id, data).then(() => { pending.prefs.delete(id); writeDone(); }, () => {
+    pending.prefs.set(id, data);
+    writeFailed();
+    toast('Un réglage n’a pas été enregistré.', retryWrites, 'Réessayer');
+  });
+}
+/** Writes again everything that failed (notes as they are now). */
+export async function retryWrites() {
+  const notes = [...pending.notes].map(id => noteById(id)).filter((n): n is Note => !!n);
+  pending.notes.forEach(id => { if (!noteById(id)) pending.notes.delete(id); });
+  const results = await Promise.allSettled([
+    ...[...pending.prefs].map(([id, data]) => putPref(id, data).then(() => { pending.prefs.delete(id); })),
+    ...[...pending.deletes].map(id => deleteNote(id).then(() => { pending.deletes.delete(id); })),
+    ...notes.map(persist),
+  ]);
+  writeDone();
+  if (results.every(r => r.status === 'fulfilled')) toast('Tout est enregistré.');
+  else toast('L’enregistrement échoue encore : exportez une sauvegarde par précaution.', retryWrites, 'Réessayer');
+}
+/** Saves the open note now; true once every write is confirmed (false: one failed, storage is off, or 4 s went by). */
+export function settled() {
+  flushEditor();
+  const state = (s = get()) => (s.memOnly || s.storageError || s.editor.saveStatus === 'error' ? false
+    : s.editor.id === null || s.editor.saveStatus === 'saved' ? true : null);
+  return new Promise<boolean>(done => {
+    if (state() !== null) return done(state()!);
+    const stop = useStore.subscribe(s => { const r = state(s); if (r !== null) { clearTimeout(timer); stop(); done(r); } });
+    const timer = setTimeout(() => { stop(); done(false); }, 4000);
+  });
+}
 export const saveFolders = () => { savePref('F', get().folders); savePref('FC', get().folderColors); };
 const savePin = () => savePref('PIN', get().pinHash);
 const saveVault = () => savePref('VAULT', get().vault);
@@ -64,7 +104,11 @@ export const fresh = (list: Note[]) => list.map(n => noteById(n.id)).filter((n):
 export function removeNotes(list: Note[]) {
   const ids = new Set(list.map(n => n.id));
   set(s => ({ notes: s.notes.filter(n => !ids.has(n.id)) }));
-  if (!get().memOnly) ids.forEach(id => deleteNote(id).catch(() => {}));
+  if (!get().memOnly) ids.forEach(id => deleteNote(id).then(() => { pending.deletes.delete(id); writeDone(); }, () => {
+    pending.deletes.add(id);
+    writeFailed();
+    toast('Une suppression n’a pas été enregistrée.', retryWrites, 'Réessayer');
+  }));
   releaseUrls(get().notes);
 }
 export function addNotes(list: Note[]) {
@@ -403,7 +447,7 @@ export const patchLayer = (p: Partial<typeof EMPTY_LAYER>) => set(s => ({ layer:
 let pinThen: (() => void) | null = null;
 export function closeLayer() {
   pinThen = null;
-  set({ layer: { mode: null, ...EMPTY_LAYER }, menuNote: null });
+  set({ layer: { mode: null, ...EMPTY_LAYER }, menuNote: null, importPlan: null });
 }
 export const toggleLayer = (mode: LayerMode) => (get().layer.mode === mode ? closeLayer() : set({ layer: { mode, ...EMPTY_LAYER } }));
 export const openPicker = () => set({ layer: { mode: 'picker', ...EMPTY_LAYER } });
@@ -559,6 +603,9 @@ export function renameFolder(raw: string) {
   set({ folders: s.folders.map(f => (f === old ? name : f)), folderColors: colors });
   updateNotes(s.notes.filter(n => n.folder === old), { folder: name });
   if (s.prefs.tab === 'f:' + old) setPref('tab', 'f:' + name);
+  // Collections searched inside this folder follow it (they keep their own name)
+  const kept = s.prefs.collections || [];
+  if (kept.some(c => c.tab === 'f:' + old)) setPref('collections', kept.map(c => (c.tab === 'f:' + old ? { ...c, tab: 'f:' + name } : c)));
   patchLayer({ renaming: null });
   saveFolders();
 }
@@ -657,7 +704,7 @@ export async function submitPin(raw: string) {
   try {
     const s = get(), step = s.layer.pinStep, then = pinThen, pin = raw.trim();
     if (step === 'new') {
-      if (pin.length < 4) { toast('Le code PIN doit contenir au moins 4 chiffres.'); return true; }
+      if (!/^\d{4,8}$/.test(pin)) { toast('Le code PIN compte 4 à 8 chiffres, sans lettres ni espaces.'); return false; }
       if (!canHash()) { toast('Un code PIN demande une page sécurisée (https).'); return true; }
       const v = s.vault;
       set({ pinHash: await hashPin(pin), vault: !v ? await createVault(pin) : vaultOpen() ? await rewrapPin(v, pin) : v });
@@ -757,6 +804,11 @@ export function renameCollection(old: string, raw: string) {
   if (collections().some(c => c.name === name)) return toast('Une collection porte déjà ce nom.');
   setPref('collections', collections().map(c => (c.name === old ? { ...c, name } : c)));
   if (get().prefs.tab === 'c:' + old) setPref('tab', 'c:' + name);
+}
+/** A collection whose folder is gone searches every note instead; its name and other criteria stay. */
+export function repairCollection(name: string) {
+  setPref('collections', collections().map(c => (c.name === name ? { ...c, tab: 'all' } : c)));
+  toast('La collection cherche maintenant dans toutes les notes.');
 }
 export function deleteCollection(name: string) {
   const before = collections();

@@ -11,6 +11,23 @@
   "title": "Bienvenue",
   "body": "Notes garde vos idées, listes, photos et messages vocaux **sur cet appareil** : pas de compte, rien n’est envoyé sur le cloud, et tout fonctionne ==hors ligne==.\n\n## Premiers pas\n- [ ] Lire [[Comment utiliser]]\n- [ ] Créer une note avec **+**\n- [ ] Ranger une note dans un dossier\n- [ ] Exporter une première sauvegarde\n\n## Bon à savoir\n- La visite guidée, le guide et les nouveautés sont dans **Réglages → Aide**.\n- Ajoutez Notes à l’écran d’accueil : elle s’ouvre comme une app et le navigateur ne peut plus effacer vos notes.\n\nBonne écriture !",
   "created": 1792396800001,
-  "updated": 1792396800001
+  "updated": 1792396800001,
+  "versions": [
+   {
+    "title": "Bienvenue",
+    "body": "Version 1 de Bienvenue",
+    "t": 1792393200001
+   },
+   {
+    "title": "Bienvenue",
+    "body": "Version 2 de Bienvenue",
+    "t": 1792389600001
+   },
+   {
+    "title": "Bienvenue",
+    "body": "Version 3 de Bienvenue",
+    "t": 1792386000001
+   }
+  ]
  }
 ]
