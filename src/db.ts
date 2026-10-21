@@ -1,5 +1,5 @@
 /** Storage: IndexedDB (same schema as Notes 26.10.x, so backups move freely), backups and PIN hashing. */
-import type { Attachment, Note } from './types';
+import type { Attachment, Collection, Note } from './types';
 
 let db: IDBDatabase | null = null;
 type Store = 'notes' | 'prefs';
@@ -87,10 +87,11 @@ async function attToBackup(a: Attachment): Promise<Attachment> {
  * so exporting their contents would defeat the point of the hidden-notes protection.
  * The Markdown vault export has the same safety rule unless the hidden vault is open.
  */
-export async function backupBlob(notes: Note[], folders: string[], folderColors: Record<string, number>) {
+export async function backupBlob(notes: Note[], folders: string[], folderColors: Record<string, number>, collections: Collection[] = []) {
   const safeNotes = notes.filter(n => !n.locked);
+  // Organisation travels too (folders, colours, collections); this device's settings (theme, hand…) and secrets never do
   let out = new Blob([JSON.stringify({
-    app: 'notes', version: 1, exported: new Date().toISOString(), folders, folderColors,
+    app: 'notes', version: 1, exported: new Date().toISOString(), folders, folderColors, collections,
     hiddenNotesExcluded: notes.length - safeNotes.length,
   }).slice(0, -1) + ',"notes":[']);
   for (const [i, n] of safeNotes.entries()) {

@@ -1,5 +1,5 @@
 /** Menus and panels that open over the list or the note, beside the control that called them: create, note menu, pickers, PIN… */
-import { useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { LayerMode, Note } from '../types';
 import { KIND_ICON, KIND_TONE } from '../config';
@@ -10,9 +10,12 @@ import {
   menuRestore, menuTrash, moveSelection, moveTo, openLayer, openPicker, patchLayer, resetPin, restoreVersion,
   setPref, submitPin, toggleNewFolder, uncheckList, unlockWithDevice, editorRefs,
 } from '../actions';
-import { clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareLinkOne, shareOne, shareSelection, startStudy } from '../features';
+import {
+  applyImport, cancelImport, clearReminder, toggleRecording, mergeSelection, openMap, pasteClipboard, reminderToCalendar, setReminder, shareLinkOne, shareOne,
+  shareSelection, startStudy,
+} from '../features';
 import { caretTop, day, dayOrTime, dayTime, finePointer, plural, reducedMotion, wide } from '../utils';
-import { InlineForm, Layer, NewFolder, Option, Row } from './kit';
+import { InlineForm, Layer, NewFolder, Option, radioKeys, Row } from './kit';
 import { Icon } from './icons';
 import { pickFile } from './Files';
 
@@ -122,7 +125,7 @@ function ListActions() {
 const IosInstall = () => (
   <>
     <Title>Garder vos notes sur iPhone</Title>
-    <Hint>Safari peut effacer les données d’un site non installé après 7 jours sans visite. Installée sur l’écran d’accueil, l’app garde vos notes.</Hint>
+    <Hint>Safari peut effacer les données d’un site non installé après 7 jours sans visite. Installée sur l’écran d’accueil, l’app n’est plus concernée — une sauvegarde reste la meilleure protection.</Hint>
     <ol className="steps">
       <li>Touchez <b>Partager</b> en bas de Safari</li>
       <li>Choisissez <b>Sur l’écran d’accueil</b></li>
@@ -160,10 +163,10 @@ function Pin() {
   return (
     <>
       <p className="layer-title" id="pin-title">{t.title(s.has)}</p>
-      <Hint>{device ? 'Face ID ou empreinte, ou votre code PIN.' : t.hint}</Hint>
+      <p className="layer-hint" id="pin-hint">{device ? 'Face ID ou empreinte, ou votre code PIN.' : t.hint}</p>
       {device && <button className="btn primary pin-device" onClick={unlockWithDevice}><Icon name="biometric" />Face ID ou empreinte</button>}
       <InlineForm key={s.step} autoFocus={!device} button="Valider" onSubmit={async (v, input) => { if (!(await submitPin(v))) { input.value = ''; input.focus(); } }}
-        inputProps={{ className: 'pin-input', type: 'password', inputMode: 'numeric', maxLength: 8, autoComplete: 'off', 'aria-labelledby': 'pin-title' }} />
+        inputProps={{ className: 'pin-input', type: 'password', inputMode: 'numeric', pattern: '[0-9]*', maxLength: 8, autoComplete: 'off', 'aria-labelledby': 'pin-title', 'aria-describedby': 'pin-hint' }} />
       {s.step !== 'new' && <>
         <div className="layer-foot">
           <button className="text-btn" onClick={() => patchLayer({ pinStep: s.step === 'auth' ? 'change' : 'auth', resetArmed: false })}>{s.step === 'auth' ? 'Changer le code' : 'Retour'}</button>
@@ -197,14 +200,29 @@ function Remind() {
     </>
   );
 }
+/* A selector must return the same value for the same state: a fresh [] on every read (once the note is closed, while this
+   panel animates out) makes React re-render forever — the blank screen of the audit (UX-07, React #185). */
+const NO_VERSIONS: Note['versions'] = [];
+/** Touching a version shows it; only "Restaurer cette version" changes the note (the current text becomes a version too). */
 function History() {
-  const versions = useStore(s => openNote(s)?.versions || []);
+  const versions = useStore(s => openNote(s)?.versions ?? NO_VERSIONS), [picked, pick] = useState<number | null>(null);
+  const v = picked === null ? null : versions[picked];
+  const first = (body: string, title: string) => body.split('\n').map(l => stripCheck(l).trim()).find(Boolean) || title || 'Vide';
   return (
     <>
       <Title>Historique</Title>
-      <Hint>Une version est gardée chaque fois que la note change (10 au plus).</Hint>
-      {versions.map((v, i) => (
-        <Row key={i} icon="history" label={v.body.split('\n').map(l => stripCheck(l).trim()).find(Boolean) || v.title || 'Vide'} trailing={dayOrTime(v.t)} onClick={() => restoreVersion(i)} />
+      <Hint>Une version est gardée chaque fois que la note change (10 au plus). Touchez-en une pour la voir.</Hint>
+      {versions.map((x, i) => (
+        <Fragment key={i}>
+          <Row icon="history" label={first(x.body, x.title)} trailing={dayOrTime(x.t)} pressed={picked === i} onClick={() => pick(picked === i ? null : i)} />
+          {picked === i && v && (
+            <div className="version-preview">
+              <p className="version-text">{[v.title, v.body].filter(Boolean).join('\n').split('\n').slice(0, 8).map(stripCheck).join('\n')}</p>
+              <button className="btn primary" onClick={() => restoreVersion(i)}>Restaurer cette version</button>
+              <p className="layer-hint">Le texte actuel reste dans l’historique.</p>
+            </div>
+          )}
+        </Fragment>
       ))}
     </>
   );
@@ -248,6 +266,50 @@ function Sort() {
   );
 }
 
+/** A backup is read, not written: what it would add or change, and what to do with notes that differ, before anything moves. */
+const CHOICES = [
+  ['both', 'Garder les deux', 'La version de la sauvegarde arrive en copie « (importée) »'],
+  ['mine', 'Garder les miennes', 'La sauvegarde est ignorée pour ces notes'],
+  ['theirs', 'Prendre la sauvegarde', 'Mon texte actuel reste dans l’historique de la note'],
+] as const;
+function ImportReview() {
+  const plan = useStore(s => s.importPlan), [choice, setChoice] = useState<(typeof CHOICES)[number][0]>('both');
+  if (!plan) return null;
+  const stat = (n: number, one: string, many: string) => n > 0 && <span className="stat">{plural(n, one, many)}</span>;
+  return (
+    <>
+      <Title>Importer {plan.file}</Title>
+      <div className="stats">
+        {stat(plan.added.length, 'note nouvelle', 'notes nouvelles')}
+        {stat(plan.conflicts.length, 'note différente', 'notes différentes')}
+        {stat(plan.same, 'déjà là, identique', 'déjà là, identiques')}
+        {stat(plan.collections.length, 'collection', 'collections')}
+      </div>
+      {plan.conflicts.length > 0 && <>
+        <h4>Notes présentes ici avec un autre contenu</h4>
+        <ul className="import-conflicts">
+          {plan.conflicts.slice(0, 5).map(({ mine, theirs }) => (
+            <li key={mine.id}><b>{mine.title || 'Sans titre'}</b> · ici {dayOrTime(mine.updated)}, sauvegarde {dayOrTime(theirs.updated)}</li>
+          ))}
+          {plan.conflicts.length > 5 && <li>et {plural(plan.conflicts.length - 5, 'autre', 'autres')}</li>}
+        </ul>
+        <div role="radiogroup" aria-label="Pour ces notes" onKeyDown={radioKeys}>
+          {CHOICES.map(([id, label, note]) => (
+            <button key={id} className="option" role="radio" aria-checked={choice === id} tabIndex={choice === id ? 0 : -1} onClick={() => setChoice(id)}>
+              <span>{label}<small className="option-note">{note}</small></span>
+            </button>
+          ))}
+        </div>
+      </>}
+      <Hint>Rien n’est modifié avant « Importer » ; ensuite, « Annuler » remet tout comme avant.</Hint>
+      <div className="layer-foot">
+        <button className="text-btn" onClick={cancelImport}>Annuler</button>
+        <button className="btn primary import-go" onClick={() => applyImport(choice)}>Importer</button>
+      </div>
+    </>
+  );
+}
+
 const LAYERS: Record<LayerMode, { label: string; Content: () => React.ReactNode }> = {
   create: { label: 'Créer', Content: Create },
   'note-menu': { label: 'Actions de la note', Content: NoteMenu },
@@ -261,6 +323,7 @@ const LAYERS: Record<LayerMode, { label: string; Content: () => React.ReactNode 
   'sel-more': { label: 'Plus d’actions', Content: SelMore },
   outline: { label: 'Plan de la note', Content: Outline },
   sort: { label: 'Trier', Content: Sort },
+  'import-review': { label: 'Importer une sauvegarde', Content: ImportReview },
 };
 
 export function LayerHost() {

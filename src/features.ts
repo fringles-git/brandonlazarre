@@ -1,14 +1,14 @@
 /** Features around the notes: capture & import, attachments analysis, audio, reminders, sharing, study, exports, onboarding, boot. */
-import type { Attachment, Note, Prefs } from './types';
+import type { Attachment, Collection, Note, Prefs } from './types';
 import type { Vault } from './vault';
 import { CONFIG, CURRENT, DAY, DEFAULT_FOLDERS, HINTS, MSG, RELEASE_LIST, releasesSince, TOUR } from './config';
 import { attFromBackup, backupBlob, getAll, normalizeNote, openDb } from './db';
 import { dueCards, flashcards, grade, hostOf, removeCardLine, URL_RE } from './markdown';
 import { audioPeaks, epubToNotes, exportPptx, fileToAtt, htmlFileToNote, isHeavy, markdownToNote, ocrText, pdfText, releaseUrls, titleFromFile, transcribe, zip } from './media';
-import { get, noteById, openNote, set, tabFolder, tabLabel, tabNotes } from './store';
+import { get, noteById, openNote, set, tabFolder, tabLabel, tabNotes, type ImportPlan } from './store';
 import {
-  checkTab, closeEditor, closeLayer, closeSearch, closeSheet, createAndOpen, createNote, editNote, endSelecting, fresh, open,
-  openEditor, openSheet, patchAtt, persist, refreshStorage, removeNotes, saveFolders, selectedNotes, setPref, syncLastId, toast,
+  addNotes, checkTab, closeEditor, closeLayer, closeSearch, closeSheet, createAndOpen, createNote, editNote, endSelecting, fresh, open,
+  openEditor, openLayer, openSheet, patchAtt, refreshStorage, removeNotes, saveFolders, selectedNotes, setPref, syncLastId, toast,
   trashNotes, untrashNotes, unlock, updateNote, updateNotes, fromTemplate, dailyNote, openSearch,
 } from './actions';
 import { day, dayTime, download, eventDate, fileSafe, isToday, plural, shuffle } from './utils';
@@ -55,36 +55,84 @@ export async function importTextFiles(files: File[]) {
   toast(plural(notes.length, 'note importée', 'notes importées') + '.', () => removeNotes(fresh(notes)));
 }
 
+/* ---------- Backups: read, show what would change, write only what the user chose — and Annuler undoes it all ---------- */
+const sameNote = (a: Note, b: Note) => a.title === b.title && a.body === b.body && a.folder === b.folder && a.atts.length === b.atts.length;
+const isCollection = (c: unknown): c is Collection => !!c && typeof (c as Collection).name === 'string' && typeof (c as Collection).tab === 'string';
+const sameCollection = (a: Collection, b: Collection) => a.tab === b.tab && a.query === b.query && a.kind === b.kind;
+
 export function importBackup(f?: File) {
   f?.text().then(text => {
     let data: unknown;
     try { data = JSON.parse(text); } catch { return toast(MSG.badBackup); }
-    const d = data as { notes?: unknown[]; folders?: unknown[]; folderColors?: Record<string, unknown> };
+    const d = data as { notes?: unknown[]; folders?: unknown[]; folderColors?: Record<string, unknown>; collections?: unknown[] };
     const list = Array.isArray(data) ? data : Array.isArray(d?.notes) ? d.notes : null;
     if (!list) return toast(MSG.badBackup);
-    let added = 0, updated = 0;
-    const byId = new Map(get().notes.map(n => [n.id, n]));
-    (list as Record<string, unknown>[]).filter(r => r && r.id != null).forEach(r => {
-      const n = normalizeNote(r);
+    const meta = Array.isArray(data) ? {} : d, s = get(), mine = new Map(s.notes.map(n => [n.id, n]));
+    const plan: ImportPlan = { file: f.name, added: [], conflicts: [], same: 0, folders: [], colors: {}, collections: [] };
+    for (const r of list as Record<string, unknown>[]) {
+      if (!r || r.id == null) continue;
+      const n = normalizeNote(r), cur = mine.get(n.id);
       n.atts = n.atts.map(attFromBackup).filter((a): a is NonNullable<typeof a> => !!a);
-      const cur = byId.get(n.id);
-      if (!cur) { byId.set(n.id, n); added++; persist(n).catch(() => {}); }
-      else if (n.updated > cur.updated) { byId.set(n.id, n); updated++; persist(n).catch(() => {}); }
-    });
-    const meta = Array.isArray(data) ? {} : d;
-    set(s => {
-      const notes = [...byId.values()], folders = s.folders.slice(), colors = { ...s.folderColors };
-      [...(Array.isArray(meta.folders) ? meta.folders : []), ...notes.map(n => n.folder)]
-        .forEach(f => { if (f && typeof f === 'string' && !folders.includes(f)) folders.push(f); });
-      Object.entries(meta.folderColors || {}).forEach(([k, v]) => { colors[k] ||= +(v as number) || 0; });
-      return { notes, folders, folderColors: colors };
-    });
-    saveFolders();
-    syncLastId();
-    releaseUrls(get().notes);
-    toast(added + updated ? plural(added, 'note ajoutée', 'notes ajoutées') + ', ' + plural(updated, 'mise à jour', 'mises à jour') : 'Rien de nouveau dans cette sauvegarde.');
+      if (!cur) plan.added.push(n);
+      else if (sameNote(cur, n)) plan.same++;
+      else plan.conflicts.push({ mine: cur, theirs: n });
+    }
+    plan.folders = [...new Set([...(Array.isArray(meta.folders) ? meta.folders : []), ...plan.added.map(n => n.folder), ...plan.conflicts.map(c => c.theirs.folder)])]
+      .filter((x): x is string => !!x && typeof x === 'string' && !s.folders.includes(x));
+    plan.colors = Object.fromEntries(Object.entries(meta.folderColors || {}).map(([k, v]) => [k, +(v as number) || 0]).filter(([k, v]) => v && !s.folderColors[k]));
+    const kept = s.prefs.collections || [];
+    plan.collections = (Array.isArray(meta.collections) ? meta.collections : []).filter(isCollection)
+      .filter(c => !kept.some(k => k.name === c.name && sameCollection(k, c)))
+      .map(c => (kept.some(k => k.name === c.name) ? { ...c, name: c.name + ' (importée)' } : c));
+    if (!plan.added.length && !plan.conflicts.length && !plan.collections.length) return toast('Rien de nouveau dans cette sauvegarde : tout est déjà là.');
+    set({ importPlan: plan });
+    openLayer('import-review');
   }).catch(() => toast(MSG.badBackup));
 }
+
+/** Conflicts: 'both' adds the backup's copy beside mine, 'mine' leaves mine, 'theirs' replaces mine (mine stays in its history). */
+export function applyImport(choice: 'both' | 'mine' | 'theirs') {
+  const plan = get().importPlan;
+  closeLayer();
+  if (!plan) return;
+  const before = { folders: get().folders.slice(), colors: { ...get().folderColors }, collections: get().prefs.collections };
+  addNotes(plan.added);
+  const made: Note[] = [...plan.added], replaced: Note[] = [];
+  for (const { mine, theirs } of plan.conflicts) {
+    if (choice === 'mine') continue;
+    // A hidden note not opened this session has its text sealed: never replace it, add the copy instead
+    if (choice === 'both' || mine.sealedOnly) {
+      const { id: _id, ...copy } = theirs;
+      made.push(createNote({ ...copy, title: (theirs.title || 'Sans titre') + ' (importée)' }));
+    } else {
+      replaced.push(mine);
+      const history = [{ title: mine.title, body: mine.body, t: mine.updated }, ...mine.versions, ...theirs.versions]
+        .filter((v, i, all) => all.findIndex(w => w.title === v.title && w.body === v.body) === i).slice(0, CONFIG.versionsMax);
+      updateNotes([mine], () => ({ ...theirs, versions: history }));
+    }
+  }
+  set(s => ({ folders: [...s.folders, ...plan.folders], folderColors: { ...s.folderColors, ...plan.colors } }));
+  saveFolders();
+  if (plan.collections.length) setPref('collections', [...(before.collections || []), ...plan.collections]);
+  syncLastId();
+  releaseUrls(get().notes);
+  const kept = choice === 'mine' ? plan.conflicts.length : 0;
+  toast([
+    made.length && plural(made.length, 'note ajoutée', 'notes ajoutées'),
+    replaced.length && plural(replaced.length, 'remplacée', 'remplacées') + ' (l’ancienne reste dans l’historique)',
+    kept && plural(kept, 'conflit gardé tel quel', 'conflits gardés tels quels'),
+    plan.collections.length && plural(plan.collections.length, 'collection', 'collections'),
+  ].filter(Boolean).join(' · ') || 'Rien n’a changé.', () => {
+    removeNotes(fresh(made));
+    const back = new Map(replaced.map(n => [n.id, n]));
+    updateNotes(fresh(replaced), n => back.get(n.id)!);
+    set({ folders: before.folders, folderColors: before.colors });
+    saveFolders();
+    setPref('collections', before.collections);
+    toast('Import annulé : tout est comme avant.');
+  });
+}
+export const cancelImport = () => { closeLayer(); toast('Import annulé : rien n’a été modifié.'); };
 
 /** Text, a link or files from another app, the clipboard or a paste. */
 export function importShared({ title = '', text = '', url = '', files = [] as File[] }) {
@@ -443,7 +491,7 @@ export function exportBackup() {
   const run = async () => {
     try {
       const s = get(), hidden = s.notes.filter(n => n.locked).length;
-      download(await backupBlob(s.notes, s.folders, s.folderColors), 'notes-' + new Date().toISOString().slice(0, 10) + '.json');
+      download(await backupBlob(s.notes, s.folders, s.folderColors, s.prefs.collections), 'notes-' + new Date().toISOString().slice(0, 10) + '.json');
       setPref('lastBackup', Date.now());
       persistStorage();
       // The JSON backup is in clear: hidden notes stay out of it (db.ts), and stay encrypted on the device

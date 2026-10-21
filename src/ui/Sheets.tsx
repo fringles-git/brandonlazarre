@@ -227,8 +227,11 @@ function Settings() {
           <button className="option" onClick={changePin}>Changer le code PIN</button>
         </>}
         <h4>Sauvegarde</h4>
-        <button className="option" onClick={exportBackup}><span>Exporter les notes</span><small>{lastBackupLabel(s.lastBackup)}</small></button>
-        <button className="option" onClick={() => pickFile('backup')}>Importer une sauvegarde</button>
+        <button className="option" onClick={exportBackup}>
+          <span>Exporter les notes<span className="option-note">Notes, dossiers et collections, lisibles en clair · sans les notes masquées ni les réglages</span></span>
+          <small>{lastBackupLabel(s.lastBackup)}</small>
+        </button>
+        <button className="option" onClick={() => pickFile('backup')}><span>Importer une sauvegarde<span className="option-note">Vous voyez ce qui change avant que rien ne soit modifié</span></span></button>
         <button className="option" onClick={exportVault}><span>Exporter en Markdown (.zip)<span className="option-note">Dossiers et pièces jointes, pour Obsidian et les autres apps</span></span></button>
         <h4>Aide</h4>
         <button className="option" onClick={startTour}>Visite guidée</button>

@@ -369,7 +369,7 @@ body[data-hand='left'] :is(.thumb-row, .thumb-group) { flex-direction: row-rever
 @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.98); } }
 body.is-editing .dock { visibility: hidden; }
 .dock, .editor-dock { transition: opacity var(--base) var(--ease), translate var(--base) var(--ease), visibility 0s; }
-body.layer-open .dock { z-index: 42; }   /* menus: navigation stays, + becomes ✕, the tabs still go where they say */
+body.layer-open .dock { z-index: 43; }   /* menus: navigation stays, + becomes ✕, the tabs still go where they say */
 /* A sheet on a phone takes the bottom edge: the dock steps aside instead of floating under or beside it */
 body.sheet-open .dock { opacity: 0; translate: 0 16px; visibility: hidden; pointer-events: none; transition: opacity var(--fast) var(--ease), translate var(--base) var(--ease), visibility 0s linear var(--base); }
 /* Keyboard open while writing beside the list: only the note's own bar stays above it */
@@ -502,6 +502,10 @@ body[data-hand='left'] :is(.layer, .sheet) { transform-origin: bottom left; }
 @keyframes sheet-in { from { opacity: 0; transform: translateY(24px) scale(.94); } }
 @keyframes sheet-out { to { opacity: 0; transform: translateY(18px) scale(.96); } }
 .layer { padding: var(--space-2); }
+/* Stacking: sheet veil 40 · sheet 41 · menu veil 42 · dock (menus open) 43 · menu 44 — a menu opened from a sheet
+   (PIN for Face ID, import review) shows over it, never hidden behind */
+.layer { z-index: 44; }
+.scrim:has(+ .layer) { z-index: 42; }
 .layer-title { padding: var(--space-3) var(--space-3) var(--space-2); font-size: var(--text-lg); font-weight: var(--weight-heading); letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .layer-hint { padding: 0 var(--space-3) var(--space-2); font-size: var(--text-sm); color: var(--color-text-muted); }
 .layer-foot { display: flex; justify-content: space-between; align-items: center; padding: var(--space-1) var(--space-1) 0; }
@@ -529,8 +533,8 @@ body[data-hand='left'] :is(.layer, .sheet) { transform-origin: bottom left; }
   min-height: 48px; padding: 0 var(--space-3); border-radius: var(--radius-row); text-align: start;
 }
 .option small { color: var(--color-text-faint); font-size: var(--text-sm); }
-.option[aria-pressed='true'] { font-weight: 650; }
-:is(.option, .row)[aria-pressed='true']::after { content: ''; flex: none; width: 8px; height: 14px; border: solid var(--color-select); border-width: 0 2.5px 2.5px 0; rotate: 45deg; translate: -4px -2px; animation: pop var(--base) var(--ease) both; }
+.option:is([aria-pressed='true'], [role='radio'][aria-checked='true']) { font-weight: 650; }
+:is(.option, .row)[aria-pressed='true']::after, .option[role='radio'][aria-checked='true']::after { content: ''; flex: none; width: 8px; height: 14px; border: solid var(--color-select); border-width: 0 2.5px 2.5px 0; rotate: 45deg; translate: -4px -2px; animation: pop var(--base) var(--ease) both; }
 @keyframes pop { from { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.15); } }
 .option[aria-pressed='true'] small { margin-inline-start: auto; }
 
@@ -678,6 +682,17 @@ body[data-hand='left'] .tiles { flex-direction: row-reverse; }   /* Note stays n
 .version-pill.is-new { background: var(--color-text); color: var(--color-bg); }
 .news + .timeline-bare { padding: 0 var(--space-3); }
 .guide-text { padding: 0 var(--space-3) var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-md); line-height: 1.5; }
+.import-conflicts { margin: 0 var(--space-3) var(--space-2); padding-inline-start: 1.1em; display: grid; gap: 4px; font-size: var(--text-sm); color: var(--color-text-muted); }
+.import-conflicts b { color: var(--color-text); }
+.layer-foot .btn { flex: none; --h: 44px; min-height: var(--h); }
+.version-preview { display: grid; gap: var(--space-2); margin: 0 var(--space-2) var(--space-2); padding: var(--space-3); border-radius: var(--radius-row); background: var(--color-fill); }
+.version-text { max-height: 12em; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); color: var(--color-text-muted); }
+.version-preview .layer-hint { padding: 0; }
+/* Something broke while drawing the screen: say so, keep the notes, offer a way back */
+.recover { display: grid; place-content: center; justify-items: center; gap: var(--space-3); min-height: 100dvh; padding: var(--space-6); text-align: center; }
+.recover h1 { font-size: var(--text-xl); font-weight: var(--weight-title); }
+.recover p { max-width: 28rem; color: var(--color-text-muted); }
+.recover .btn { flex: none; }
 .guide-text .md-h1 { font-size: var(--text-lg); margin-top: var(--space-2); }
 .news-title { margin-top: var(--space-3); font-size: var(--text-xl); font-weight: 800; }
 .news-counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: var(--space-2); }

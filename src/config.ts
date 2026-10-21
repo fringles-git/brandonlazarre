@@ -115,6 +115,30 @@ const RELEASES: Omit<Release, 'version'>[] = [
   {
     date: '2026-10-21',
     changes: {
+      fix: [
+        'Fermer l’historique puis la note d’un même geste ne laisse plus un écran vide',
+        'Un menu ouvert depuis Réglages (code PIN pour Face ID, import) s’affiche bien par-dessus',
+        'Renommer un dossier ne vide plus les collections qui y cherchent',
+        'Un enregistrement qui échoue ne passe plus inaperçu : l’écran le dit et propose de réessayer',
+        'Une mise à jour attend que la note ouverte soit enregistrée avant de recharger',
+      ],
+      new: [
+        'Importer une sauvegarde montre d’abord ce qui change ; pour une note différente : garder les deux, garder la mienne ou prendre la sauvegarde — et Annuler remet tout',
+        'La sauvegarde emporte aussi les collections',
+      ],
+      better: [
+        'Historique : une version se regarde d’abord, « Restaurer cette version » la remet',
+        'Une vue vide dit pourquoi (recherche, dossier, collection…) et propose quoi faire',
+        'Thème, main, couleur des dossiers : les flèches du clavier changent le choix',
+        'Un nouveau code PIN compte 4 à 8 chiffres, et le dit',
+        'Réglages dit ce que contient la sauvegarde avant de l’exporter ; le guide parle honnêtement de la conservation',
+        'Si l’affichage s’interrompt, un écran le dit et recharge Notes sans rien perdre',
+      ],
+    },
+  },
+  {
+    date: '2026-10-21',
+    changes: {
       new: [
         'Premier lancement sans notes d’exemple : l’accueil propose Note, Liste, Vocal ou Importer, et le guide se lit dans Réglages › Aide',
         'Épinglées en tête de la liste, repliables d’un geste',
@@ -446,7 +470,7 @@ Une ligne « Question :: Réponse » devient une carte. **⋮ → Réviser** vou
 # Sauvegarder
 Rien n’est envoyé sur le cloud : exportez parfois une sauvegarde (**Réglages → Exporter les notes**), ou tout en Markdown pour Obsidian. **⋮ → Envoyer un lien** partage une note sans serveur. Chaque note garde ses 10 dernières versions.
 
-Ajoutez Notes à l’écran d’accueil : elle s’ouvre comme une app, et le navigateur ne peut plus effacer vos notes.`;
+Ajoutez Notes à l’écran d’accueil : elle s’ouvre comme une app, et le navigateur garde mieux ses données (Safari, par exemple, n’efface plus une app installée au bout de 7 jours). Rien ne remplace une sauvegarde : exportez-en une de temps en temps, et gardez-la ailleurs.`;
 
 export const MSG = {
   trashed: 'Note placée dans la corbeille',

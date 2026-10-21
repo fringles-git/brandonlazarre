@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useLayoutEffect, useSyncExternalStore } from 'react';
+import { Component, StrictMode, useEffect, useLayoutEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useShallow } from 'zustand/react/shallow';
 import '@fontsource-variable/figtree';
@@ -7,7 +7,7 @@ import './styles/app.css';
 import { CONFIG } from './config';
 import { releaseUrls } from './media';
 import { set, useStore, type BeforeInstallPromptEvent } from './store';
-import { checkTab, toast } from './actions';
+import { checkTab, flushEditor, settled, toast } from './actions';
 import { analyse, boot, persistStorage, updateBadge } from './features';
 import { bindGestures } from './gestures';
 import { Dock } from './ui/Dock';
@@ -26,7 +26,12 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || !isSecureContext || import.meta.env.DEV) return;
   navigator.serviceWorker.register(new URL('sw.js', location.href).href, { updateViaCache: 'none' }).then(reg => {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
-    const offer = (w: ServiceWorker) => toast('Nouvelle version disponible.', () => { swap = true; w.postMessage('skip-waiting'); }, 'Recharger', 'new');
+    // Reload only once the note being written is saved: an update never costs a keystroke
+    const offer = (w: ServiceWorker) => toast('Nouvelle version disponible.', async () => {
+      if (!(await settled())) return toast('La note ouverte n’est pas enregistrée : mise à jour reportée.', () => offer(w), 'Réessayer');
+      swap = true;
+      w.postMessage('skip-waiting');
+    }, 'Recharger', 'new');
     if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const w = reg.installing!;
@@ -106,5 +111,22 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+/** A drawing error never leaves a blank page: the notes are on disk (the open one is saved now), one tap reloads. */
+class Recover extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() { flushEditor(); }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <main className="recover" role="alert">
+        <h1>L’affichage s’est interrompu</h1>
+        <p>Vos notes sont enregistrées sur cet appareil. Recharger rouvre Notes là où vous étiez.</p>
+        <button className="btn primary" onClick={() => location.reload()}>Recharger</button>
+      </main>
+    );
+  }
+}
+
+createRoot(document.getElementById('root')!).render(<StrictMode><Recover><App /></Recover></StrictMode>);
 boot();
