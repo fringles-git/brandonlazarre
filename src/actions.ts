@@ -262,7 +262,12 @@ const SHORTCUTS: Record<string, FormatTool> = {
   KeyB: 'b', KeyI: 'i', 'Shift+KeyH': 'hl', 'Shift+Digit8': 'bullet', 'Shift+Digit7': 'number', 'Shift+Digit9': 'check',
   KeyK: 'link', 'Shift+KeyK': 'card', 'Alt+Digit1': 'h1', 'Alt+Digit2': 'h2', 'Alt+Digit3': 'h3', 'Alt+Digit0': 'text',
 };
-export const toggleFormatBar = () => setPref('formatBar', !get().prefs.formatBar);
+/** Aa: the formatting tools take the place of the note tools; turning them on starts writing (they serve the caret). */
+export function toggleFormatBar() {
+  const on = !get().prefs.formatBar;
+  setPref('formatBar', on);
+  if (on && get().editor.reading) editAt(null);
+}
 
 export function applyFormat(tool: FormatTool) {
   const el = editorRefs.body;
@@ -434,6 +439,8 @@ const onMenuNote = (fn: (n: Note) => void) => () => {
   closeLayer();
   if (n) fn(n);
 };
+/** A card's quick actions (mouse): the menu's own actions, without opening the menu. */
+export const onCard = (id: number, action: () => void) => { set({ menuNote: id }); action(); };
 const isOpen = (n: Note) => get().editor.id === n.id;
 export const menuPin = onMenuNote(n => toggleFlag([n], 'pinned'));
 export const menuHide = onMenuNote(n => toggleHidden([n]));

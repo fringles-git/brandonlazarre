@@ -1,7 +1,7 @@
 /** Features around the notes: capture & import, attachments analysis, audio, reminders, sharing, study, exports, onboarding, boot. */
 import type { Attachment, Note, Prefs } from './types';
 import type { Vault } from './vault';
-import { CONFIG, CURRENT, DAY, DEFAULT_FOLDERS, GUIDE_TITLE, HINTS, MSG, RELEASE_LIST, releasesSince, STARTER_NOTES, TOUR } from './config';
+import { CONFIG, CURRENT, DAY, DEFAULT_FOLDERS, HINTS, MSG, RELEASE_LIST, releasesSince, TOUR } from './config';
 import { attFromBackup, backupBlob, getAll, normalizeNote, openDb } from './db';
 import { dueCards, flashcards, grade, hostOf, removeCardLine, URL_RE } from './markdown';
 import { audioPeaks, epubToNotes, exportPptx, fileToAtt, htmlFileToNote, isHeavy, markdownToNote, ocrText, pdfText, releaseUrls, titleFromFile, transcribe, zip } from './media';
@@ -465,11 +465,8 @@ export function install() {
 }
 
 /* ---------- Onboarding ---------- */
-export function openGuide() {
-  closeSheet();
-  const n = get().notes.find(x => !x.deleted && x.title.trim().toLowerCase() === GUIDE_TITLE.toLowerCase());
-  if (n) open(n.id); else createAndOpen({ ...STARTER_NOTES[0], folder: '' });
-}
+/** The guide lives in Aide, read in a sheet: it never sits among the user's notes. */
+export const openGuide = () => openSheet('guide');
 /** What's new in this version, any time (Réglages → Aide → Quoi de neuf). */
 export const openNews = () => set({ newsSince: RELEASE_LIST[1]?.version || CURRENT.version, sheet: 'news' });
 export function endWelcome(tour: boolean) {
@@ -493,7 +490,8 @@ export function endTour() {
 }
 export const tourStep = (i: number) => (i < TOUR.length ? set({ tour: Math.max(0, i) }) : endTour());
 export const dismissHint = (id: string) => setPref('hintsSeen', [...(get().prefs.hintsSeen || []), id]);
-export const currentHint = (prefs: Prefs, fine: boolean) => HINTS.find(h => !(prefs.hintsSeen || []).includes(h.id) && (!h.fine || fine)) || null;
+export const currentHint = (prefs: Prefs, fine: boolean) =>
+  HINTS.find(h => !(prefs.hintsSeen || []).includes(h.id) && (!h.fine || fine) && (!h.touch || !fine)) || null;
 
 /* ---------- Boot ---------- */
 export async function boot() {
@@ -514,16 +512,7 @@ export async function boot() {
   const prefs = get().prefs;
   if (!prefs.firstRun) setPref('firstRun', Date.now());
   syncLastId();
-  if (!prefs.guide) {
-    const now = Date.now(), have = new Set(get().notes.map(n => n.title.trim().toLowerCase()));
-    STARTER_NOTES.forEach((s, i) => { if (!have.has(s.title.toLowerCase())) createNote({ ...s, folder: '', created: now + i, updated: now + i }); });
-    setPref('guide', 1);
-  }
-  // Starter notes nobody has edited follow the app's current wording
-  STARTER_NOTES.forEach(s => {
-    const n = get().notes.find(x => !x.deleted && x.title.trim().toLowerCase() === s.title.toLowerCase());
-    if (n && n.updated === n.created && n.body !== s.body) updateNote(n, { body: s.body });
-  });
+  // No sample notes: a first launch opens on an empty workspace that invites the first note (List.tsx, FirstUse)
   if (!prefs.onboarded) set({ welcome: true });
   const seen = prefs.seenVersion || (prefs.onboarded ? '2.1.0' : CURRENT.version);
   if (get().prefs.seenVersion !== CURRENT.version) setPref('seenVersion', CURRENT.version);

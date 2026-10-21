@@ -58,6 +58,7 @@ function useDocumentState() {
   const s = useStore(useShallow(s => ({
     theme: s.prefs.theme, hand: s.prefs.hand, tint: s.prefs.tint, editing: s.editor.id !== null,
     selecting: s.selecting, searching: s.searchOpen, recording: s.recorder.on, layer: !!s.layer.mode || !!s.sheet, notes: s.notes,
+    sheet: !!s.sheet || s.welcome,
   })));
   useLayoutEffect(() => {
     const root = document.documentElement, body = document.body;
@@ -68,6 +69,7 @@ function useDocumentState() {
     body.classList.toggle('is-searching', s.searching);
     body.classList.toggle('is-recording', s.recording);
     body.classList.toggle('layer-open', s.layer);
+    body.classList.toggle('sheet-open', s.sheet);
   });
   useEffect(() => { checkTab(); releaseUrls(s.notes); updateBadge(s.notes); }, [s.notes]);
 }
@@ -77,12 +79,12 @@ function App() {
   useInstall();
   useDocumentState();
   const isWide = useWide();
-  const s = useStore(useShallow(s => ({ ready: s.ready, editing: s.editor.id !== null, sheet: s.sheet, page: s.page })));
+  const s = useStore(useShallow(s => ({ ready: s.ready, editing: s.editor.id !== null, sheet: s.sheet, page: s.page, welcome: s.welcome })));
   if (!s.ready) return null;
   const covered = (s.editing && !isWide) || !!s.sheet;
   return (
     <>
-      <div className="ambient" aria-hidden="true" />
+      {s.welcome && <div className="ambient" aria-hidden="true" />}
       <div className="page" inert={covered || undefined}>
         {s.page === 'library' ? <Library /> : <>
           <Header />

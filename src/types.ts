@@ -59,12 +59,12 @@ export interface Prefs {
   lastBackup?: number;
   firstRun?: number;
   onboarded?: number;
-  guide?: number;
+  pinnedFolded?: boolean;   // the Épinglées shelf is folded away
   seenVersion?: string;
   iosInstallDismissed?: boolean;
 }
 
-export type SheetMode = 'study' | 'map' | 'overview' | 'settings' | 'about' | 'news';
+export type SheetMode = 'study' | 'map' | 'overview' | 'settings' | 'about' | 'news' | 'guide';
 export type LayerMode =
   | 'create' | 'note-menu' | 'import' | 'list-actions' | 'ios-install' | 'picker'
   | 'pin' | 'remind' | 'history' | 'sel-more' | 'outline' | 'sort';

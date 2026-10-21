@@ -43,6 +43,8 @@ export const cssPx = (name: string) => parseFloat(getComputedStyle(document.docu
 export const isTyping = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 export const finePointer = () => matchMedia('(pointer:fine)').matches;
+/** The shortcut modifier as printed on this keyboard. */
+export const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion:reduce)').matches;
 export const wide = () => matchMedia(CONFIG.wideMedia).matches;
 export const openUrl = (url: string) => () => window.open(url, '_blank', 'noopener');

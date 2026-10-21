@@ -35,7 +35,7 @@ const STEPS = [
   </>,
   () => <>
     <h2 className="welcome-title">Tout est prêt</h2>
-    <p className="welcome-lead">Deux notes vous attendent : <b>Bienvenue</b> et <b>Comment utiliser</b>.</p>
+    <p className="welcome-lead">Touchez <b>+</b> pour écrire votre première note. Le guide et les nouveautés sont dans <b>Réglages › Aide</b>.</p>
     <p className="welcome-lead">La visite guidée montre en quelques étapes où se trouve chaque outil.</p>
   </>,
 ];
@@ -45,7 +45,9 @@ export function Welcome() {
   useEffect(() => { if (open) setStep(0); }, [open]);
   useEffect(() => { document.getElementById('welcome-next')?.focus(); }, [step]);
   return (
-    <Layer open={open} onClose={() => endWelcome(false)} label="Bienvenue dans Notes" className="sheet glass welcome" initialFocus={() => document.getElementById('welcome-next')}>
+    <Layer open={open} onClose={() => endWelcome(false)} label="Bienvenue dans Notes" className="sheet glass welcome" data={{ 'data-drag': '' }}
+      initialFocus={() => document.getElementById('welcome-next')}>
+      <span className="sheet-grabber" aria-hidden="true" />
       <div className="sheet-head">
         <span className="dots" role="img" aria-label={`Étape ${step + 1} sur ${STEPS.length}`}>{STEPS.map((_, i) => <i key={i} data-on={i === step || undefined} />)}</span>
         <button className="text-btn" onClick={() => endWelcome(false)}>Passer</button>
@@ -75,7 +77,7 @@ export function Tour() {
     return () => { clearTimeout(t); removeEventListener('resize', measure); removeEventListener('scroll', measure, true); };
   }, [step]);
   if (index === null || !step) return null;
-  const last = index === TOUR.length - 1, pad = cssPx('--space-2'), edge = cssPx('--space-3'), w = Math.min(340, innerWidth - 2 * edge);
+  const last = index === TOUR.length - 1, pad = cssPx('--space-2'), edge = cssPx('--space-3'), w = Math.min(300, innerWidth - 2 * edge);
   const spot = rect && { left: rect.left - pad, top: rect.top - pad, width: rect.width + 2 * pad, height: rect.height + 2 * pad };
   const bubble = rect ? {
     left: Math.min(Math.max(edge, rect.left + rect.width / 2 - w / 2), innerWidth - w - edge),

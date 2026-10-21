@@ -3,11 +3,14 @@ import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { useShallow } from 'zustand/react/shallow';
 import type { Note } from '../types';
 import { CONFIG } from '../config';
-import { checkStats, dueCards, entities, parseCheck, plainLine, plainText, snippet } from '../markdown';
+import { checkStats, dueCards, entities, parseCheck, plainText, snippet } from '../markdown';
 import { firstAtt, urlOf } from '../media';
 import { countIn, folderColor, inTrash, readableNotes, tabFolder, tabLabel, useStore, visibleNotes } from '../store';
-import { changePin, setPref, emptyTrash, goHome, goLibrary, open, openLayer, openNoteMenu, openSheet, toggleCardCheck, toggleSelected } from '../actions';
-import { backupDue, currentHint, dismissHint, exportBackup, playCard, startStudy } from '../features';
+import {
+  changePin, createAndOpen, emptyTrash, fromTemplate, goHome, goLibrary, menuPin, menuTrash, onCard, open, openImport, openLayer, openNoteMenu,
+  openPicker, openSheet, setPref, setTab, toggleCardCheck, toggleSelected,
+} from '../actions';
+import { backupDue, currentHint, dismissHint, exportBackup, openGuide, playCard, startStudy, toggleRecording } from '../features';
 import { consumeClick } from '../gestures';
 import { bytes, clock, day, daysAgo, dayTime, eventDate, finePointer, fullDay, plural, relativeDay, time } from '../utils';
 import { FolderTag, Formatted, Highlight } from './kit';
@@ -28,7 +31,7 @@ export function Header() {
         </h1>
         <div className="island glass header-tools" id="view-tools">
           <button className="icon-btn" onClick={() => setPref('view', s.prefs.view === 'cards' ? 'list' : 'cards')}
-            aria-label={s.prefs.view === 'cards' ? 'Afficher en liste' : 'Afficher en cartes'}><Icon name={s.prefs.view === 'cards' ? 'list' : 'cards'} /></button>
+            aria-label={s.prefs.view === 'cards' ? 'Afficher en liste compacte' : 'Afficher en cartes'}><Icon name={s.prefs.view === 'cards' ? 'list' : 'cards'} /></button>
           <button className={'icon-btn' + (sorted ? ' has-dot' : '')} onClick={() => openLayer('sort')} aria-haspopup="dialog" aria-label={'Trier' + (sorted ? ' (modifié)' : '')}><Icon name="sort" /></button>
         </div>
       </div>
@@ -43,7 +46,8 @@ export function InfoBar() {
   const s = useStore(useShallow(s => ({
     tab: s.prefs.tab, lastBackup: s.prefs.lastBackup, selecting: s.selecting, query: s.query, unlocked: s.hiddenUnlocked,
     trashCount: inTrash(s) ? countIn(s, 'trash') : 0,
-    hint: s.prefs.tab === 'all' && !s.selecting && !s.searchOpen ? currentHint(s.prefs, finePointer()) : null,
+    // Tips are about handling notes: they wait until there are a few
+    hint: s.prefs.tab === 'all' && !s.selecting && !s.searchOpen && s.notes.filter(n => !n.deleted).length >= 3 ? currentHint(s.prefs, finePointer()) : null,
     ios: s.install.ios && !s.install.standalone && !s.prefs.iosInstallDismissed && !s.memOnly && s.prefs.tab === 'all',
     backup: backupDue(s) && s.prefs.tab === 'all' && !s.selecting && !s.searchOpen,
   })));
@@ -78,11 +82,13 @@ function widgets(notes: Note[]): Widget[] {
   });
   const due = notes.filter(n => dueCards(n).length), cards = due.reduce((t, n) => t + dueCards(n).length, 0);
   if (cards) out.push({ key: 'study', tone: 'indigo', icon: 'study', label: 'À réviser', title: plural(cards, 'carte', 'cartes'), detail: plural(due.length, 'note', 'notes'), onClick: () => startStudy(due) });
-  const todo = notes.map(n => ({ n, left: n.body.split('\n').map(parseCheck).filter(c => c && !c.done && c.text.trim()) }))
-    .filter(x => x.left.length).sort((a, b) => b.n.updated - a.n.updated);
+  // What is left to do, counted — the items themselves are on the cards below
+  const todo = notes.map(n => ({ n, left: n.body.split('\n').map(parseCheck).filter(c => c && !c.done && c.text.trim()).length }))
+    .filter(x => x.left).sort((a, b) => b.n.updated - a.n.updated);
   if (todo.length) out.push({
-    key: 'todo', tone: 'blue', icon: 'checklist', label: 'À faire', title: todo[0].n.title || 'Sans titre',
-    detail: todo[0].left.slice(0, 2).map(c => plainLine(c!.text)).join(' · ') + (todo.reduce((t, x) => t + x.left.length, 0) > 2 ? '…' : ''), onClick: () => open(todo[0].n.id),
+    key: 'todo', tone: 'blue', icon: 'checklist', label: 'À faire', title: plural(todo.reduce((t, x) => t + x.left, 0), 'tâche restante', 'tâches restantes'),
+    detail: todo.length > 1 ? plural(todo.length, 'liste', 'listes') : 'Dans ' + (todo[0].n.title || 'Sans titre'),
+    onClick: () => (todo.length > 1 ? setTab('lists') : open(todo[0].n.id)),
   });
   const media = notes.filter(n => n.created > now - 7 * 864e5 && n.atts.some(a => a.type === 'image' || a.type === 'audio')).sort((a, b) => b.created - a.created)[0];
   if (media) {
@@ -114,7 +120,8 @@ export function Recap() {
       {list.length > 0 && (
         <div className="recap-row">
           {list.map((w, i) => (
-            <button key={w.key} className="widget" data-tone={w.tone} data-size={list.length > 2 && (i === 0 || w.img) ? 'tall' : undefined} onClick={w.onClick}>
+            <button key={w.key} className="widget" data-tone={w.tone} data-size={list.length > 2 && (i === 0 || w.img) ? 'tall' : undefined} onClick={w.onClick}
+              title={w.detail ? w.title + ' · ' + w.detail : undefined}>
               {w.img && <img src={w.img} alt="" />}
               <span className="widget-label"><Icon name={w.icon} />{w.label}</span>
               <b className="widget-title">{w.title}</b>
@@ -161,11 +168,22 @@ function match(n: Note, query: string) {
   const a = n.atts.find(x => x.text?.toLowerCase().includes(q));
   return a ? { text: snippet(a.text!, a.text!.toLowerCase().indexOf(q), q.length), source: a.type } : null;
 }
-function CardBody({ note, readable, query }: { note: Note; readable: boolean; query: string }) {
+/** Marks card texts taller than their box: they fade out at the bottom instead of ending on a cut line. */
+const clampWatch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(entries => entries.forEach(({ target: el }) =>
+  el.classList.toggle('is-clamped', el.scrollHeight > el.clientHeight + 1)));
+const watchClamp = (el: HTMLElement | null) => {
+  if (!el || !clampWatch) return;
+  clampWatch.observe(el);
+  return () => clampWatch.unobserve(el);
+};
+const oneLine = (body: string) => plainText(body).replace(/\s+/g, ' ').trim();
+
+function CardBody({ note, readable, query, compact }: { note: Note; readable: boolean; query: string; compact: boolean }) {
   if (!readable) return <div className="card-body"><i>Contenu masqué</i></div>;
   const m = match(note, query);
-  if (m) return <div className="card-body is-snippet">{m.source && <><span className="snippet-source">{m.source === 'pdf' ? 'Dans le PDF' : 'Dans la photo'}</span> </>}<Highlight text={m.text} query={query} /></div>;
-  return note.body ? <div className="card-body"><Formatted body={note.body} query={query} onToggle={(l, on) => toggleCardCheck(note.id, l, on)} /></div> : null;
+  if (m) return <div className="card-body is-snippet" ref={watchClamp}>{m.source && <><span className="snippet-source">{m.source === 'pdf' ? 'Dans le PDF' : 'Dans la photo'}</span> </>}<Highlight text={m.text} query={query} /></div>;
+  if (compact) return note.body.trim() ? <div className="card-body is-line"><Highlight text={oneLine(note.body)} query={query} /></div> : null;
+  return note.body ? <div className="card-body" ref={watchClamp}><Formatted body={note.body} query={query} onToggle={(l, on) => toggleCardCheck(note.id, l, on)} /></div> : null;
 }
 const Count = ({ icon, text, spoken, className = '' }: { icon: string; text: string; spoken: string; className?: string }) => (
   <span className={'count ' + className}><Icon name={icon} /><span aria-hidden="true">{text}</span><span className="visually-hidden">{spoken}</span></span>
@@ -191,18 +209,32 @@ function CardFooter({ note }: { note: Note }) {
   </>;
 }
 
+/** With a mouse, hovering a card offers its three most used actions (touch has the swipes). Mouse only: out of the Tab order. */
+function QuickActions({ note, title }: { note: Note; title: string }) {
+  const act = (label: string, icon: string, run: () => void, danger = false) => (
+    <button className={danger ? 'danger' : undefined} tabIndex={-1} onClick={() => onCard(note.id, run)} aria-label={label + ' : ' + title} title={label}><Icon name={icon} /></button>
+  );
+  return (
+    <span className="card-actions">
+      {act(note.pinned ? 'Désépingler' : 'Épingler', 'pin', menuPin)}
+      {act('Déplacer', 'move', openPicker)}
+      {act('Supprimer', 'trash', menuTrash, true)}
+    </span>
+  );
+}
+
 interface CardProps {
   note: Note; inShelf: boolean; grip: boolean; selected: boolean; selecting: boolean; isOpen: boolean; readable: boolean;
-  query: string; color: number | null; date: number; showFolder: boolean;
+  query: string; color: number | null; date: number; showFolder: boolean; compact: boolean;
 }
-const Card = memo(function Card({ note, inShelf, grip, selected, selecting, isOpen, readable, query, color, date, showFolder }: CardProps) {
+const Card = memo(function Card({ note, inShelf, grip, selected, selecting, isOpen, readable, query, color, date, showFolder, compact }: CardProps) {
   const title = note.title || 'Sans titre';
   return (
     <article className={'card' + (selected ? ' selected' : '') + (grip ? ' has-grip' : '') + (isOpen ? ' is-open' : '')}
       data-id={note.id} data-color={color ?? undefined} data-pinned={note.pinned || undefined}>
       <span className="card-check" aria-hidden="true"><Icon name="check" /></span>
       {grip && <span className="card-grip" aria-hidden="true" title="Glisser, ou Alt + ↑ ↓, pour réordonner"><Icon name="grip" /></span>}
-      <CardMedia note={note} />
+      {!compact && <CardMedia note={note} />}
       <div className="card-head">
         <h3 className="card-title">
           <button className="card-open" aria-pressed={selecting ? selected : undefined}
@@ -212,14 +244,15 @@ const Card = memo(function Card({ note, inShelf, grip, selected, selecting, isOp
         </h3>
         {!selecting && <button className="card-more" onClick={() => openNoteMenu(note.id)} aria-label={'Actions : ' + title} aria-haspopup="dialog"><Icon name="more" /></button>}
       </div>
+      {!selecting && !note.deleted && <QuickActions note={note} title={title} />}
       <p className="card-meta">
-        {note.pinned && !inShelf && <><Icon name="pin" /><span className="visually-hidden">Épinglée. </span></>}
+        {note.pinned && !inShelf && <><Icon name="pin" className="pin-mark" /><span className="visually-hidden">Épinglée. </span></>}
         {note.locked && <><Icon name="lock" /><span className="visually-hidden">Masquée. </span></>}
         <span>{relativeDay(date)}</span>
         {showFolder && note.folder && <FolderTag folder={note.folder} />}
       </p>
-      <CardBody note={note} readable={readable} query={query} />
-      <CardFooter note={note} />
+      <CardBody note={note} readable={readable} query={query} compact={compact} />
+      {!compact && <CardFooter note={note} />}
     </article>
   );
 });
@@ -227,6 +260,22 @@ const Card = memo(function Card({ note, inShelf, grip, selected, selecting, isOp
 function Empty() {
   const filtered = useStore(s => !!s.query.trim() || !!s.searchKind), trash = useStore(inTrash);
   return <div className="empty">{filtered ? 'Aucune note ne correspond.' : trash ? 'Corbeille vide.' : 'Aucune note. Touchez + pour écrire la première.'}</div>;
+}
+/** First use: the workspace starts empty — no tutorial notes — with one invitation that leaves with the first note. */
+function FirstUse() {
+  return (
+    <section className="first-use" aria-labelledby="first-use-title">
+      <h2 id="first-use-title">Votre première note</h2>
+      <p>Écrivez, cochez, dictez ou importez. Tout reste sur cet appareil, même hors ligne.</p>
+      <div className="first-actions">
+        <button className="first-action is-main" onClick={() => createAndOpen()}><Icon name="edit" />Note</button>
+        <button className="first-action" onClick={() => fromTemplate('list')}><Icon name="checklist" />Liste</button>
+        <button className="first-action" onClick={toggleRecording}><Icon name="mic" />Vocal</button>
+        <button className="first-action" onClick={() => openImport('new')} aria-haspopup="dialog"><Icon name="download" />Importer</button>
+      </div>
+      <button className="text-btn" onClick={openGuide}>Lire le guide</button>
+    </section>
+  );
 }
 
 const dayGroup = (t: number) => {
@@ -263,6 +312,7 @@ export function NoteList({ onShown }: { onShown: (notes: Note[]) => void }) {
   const s = useStore(useShallow(s => ({
     prefs: s.prefs, query: s.query, kind: s.searchKind, selecting: s.selecting, selection: s.selection, editorId: s.editor.id,
     unlocked: s.hiddenUnlocked, colors: s.folderColors, trash: inTrash(s), searching: s.searchOpen,
+    blank: s.prefs.tab === 'all' && !s.searchOpen && !s.notes.some(n => !n.deleted),
   })));
   const ref = useRef<HTMLElement>(null), more = useRef<HTMLButtonElement>(null);
   const key = [s.prefs.tab, s.prefs.sort, s.prefs.dir, s.query, s.kind].join('|');
@@ -270,9 +320,10 @@ export function NoteList({ onShown }: { onShown: (notes: Note[]) => void }) {
   const limit = page.key === key ? page.limit : CONFIG.pageSize, shown = useMemo(() => notes.slice(0, limit), [notes, limit]);
   const left = notes.length - shown.length, next = () => setPage({ key, limit: limit + CONFIG.pageSize });
   const recents = s.searching && !s.query.trim() && !s.kind, pinned = s.trash || s.searching ? 0 : notes.filter(n => n.pinned).length;
-  const cards = s.prefs.view === 'cards' && !s.searching, showFolder = !s.prefs.tab.startsWith('f:');
+  const cards = s.prefs.view === 'cards' && !s.searching, compact = s.prefs.view === 'list' && !s.searching, showFolder = !s.prefs.tab.startsWith('f:');
+  const folded = !!s.prefs.pinnedFolded;
 
-  useMasonry(ref, cards, [shown, cards, s.selecting, s.query]);
+  useMasonry(ref, cards, [shown, cards, s.selecting, s.query, folded]);
   useEffect(() => onShown(shown), [shown, onShown]);
   useEffect(() => {
     const el = more.current;
@@ -285,7 +336,7 @@ export function NoteList({ onShown }: { onShown: (notes: Note[]) => void }) {
   const card = (n: Note, inShelf: boolean) => (
     <Card key={n.id} note={n} inShelf={inShelf} grip={n.pinned && pinned > 1} selecting={s.selecting} selected={s.selecting && s.selection.has(n.id)}
       isOpen={s.editorId === n.id} readable={!n.locked || s.unlocked} query={s.query} color={n.folder ? folderColor(n.folder, s.colors) : null}
-      date={s.prefs.sort === 'created' ? n.created : n.updated} showFolder={showFolder} />
+      date={s.prefs.sort === 'created' ? n.created : n.updated} showFolder={showFolder} compact={compact} />
   );
   const section = (title: string, count: number, list: Note[], inShelf: boolean) => list.length > 0 && (
     <Fragment key={title}>
@@ -293,18 +344,30 @@ export function NoteList({ onShown }: { onShown: (notes: Note[]) => void }) {
       {list.map(n => card(n, inShelf))}
     </Fragment>
   );
+  /** Pinned notes stay on top, apart from the flow of recent ones; the shelf folds away in one tap. */
+  const shelf = () => (
+    <Fragment key="pinned">
+      <h2 className="list-heading">
+        <button className="list-heading is-toggle" aria-expanded={!folded} onClick={() => setPref('pinnedFolded', !folded)}>
+          <Icon name="pin" className="pin-mark" />Épinglées<span className="heading-count">{pinned}</span><Icon name="back" className="chevron" />
+        </button>
+      </h2>
+      {!folded && shown.filter(n => n.pinned).map(n => card(n, true))}
+    </Fragment>
+  );
+  const newestFirst = s.prefs.sort === 'updated' && s.prefs.dir === 'desc';
   let body: React.ReactNode;
-  if (!notes.length) body = <Empty />;
+  if (!notes.length) body = s.blank ? <FirstUse /> : <Empty />;
   else if (recents) {
     const groups = new Map<string, Note[]>();
     [...shown].sort((a, b) => b.updated - a.updated).forEach(n => groups.set(dayGroup(n.updated), [...(groups.get(dayGroup(n.updated)) || []), n]));
     body = [<h2 key="r" className="list-heading is-section">Récents</h2>, ...[...groups].map(([t, l]) => section(t, l.length, l, false))];
   } else if (pinned > 0 && pinned < notes.length)
-    body = [section('Épinglées', pinned, shown.filter(n => n.pinned), true), section('Autres notes', notes.length - pinned, shown.filter(n => !n.pinned), false)];
+    body = [shelf(), section(newestFirst ? 'Récentes' : 'Autres notes', notes.length - pinned, shown.filter(n => !n.pinned), false)];
   else body = shown.map(n => card(n, false));
 
   return (
-    <main className={'note-list' + (cards ? ' cards' : '')} id="note-list" ref={ref}>
+    <main className={'note-list' + (cards ? ' cards' : '') + (compact ? ' is-compact' : '')} id="note-list" ref={ref}>
       {body}
       {left > 0 && <button className="text-btn list-more" ref={more} onClick={next}>Afficher {plural(Math.min(left, CONFIG.pageSize), 'note', 'notes')} de plus</button>}
     </main>
