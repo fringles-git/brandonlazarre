@@ -56,7 +56,11 @@ export async function importTextFiles(files: File[]) {
 }
 
 /* ---------- Backups: read, show what would change, write only what the user chose — and Annuler undoes it all ---------- */
-const sameNote = (a: Note, b: Note) => a.title === b.title && a.body === b.body && a.folder === b.folder && a.atts.length === b.atts.length;
+const sameAtt = (a: Note['atts'][number], b: Note['atts'][number]) =>
+  a.type === b.type && a.name === b.name && (a.size ?? a.blob?.size) === (b.size ?? b.blob?.size) && a.text === b.text && a.pages === b.pages && a.duration === b.duration;
+const sameNote = (a: Note, b: Note) =>
+  a.title === b.title && a.body === b.body && a.folder === b.folder && a.pinned === b.pinned && !a.deleted === !b.deleted && (a.remind ?? null) === (b.remind ?? null)
+  && a.atts.length === b.atts.length && a.atts.every((x, i) => sameAtt(x, b.atts[i]));
 const isCollection = (c: unknown): c is Collection => !!c && typeof (c as Collection).name === 'string' && typeof (c as Collection).tab === 'string';
 const sameCollection = (a: Collection, b: Collection) => a.tab === b.tab && a.query === b.query && a.kind === b.kind;
 

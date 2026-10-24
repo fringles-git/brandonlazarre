@@ -47,6 +47,8 @@ export interface Prefs {
   sort: 'updated' | 'created';
   dir: 'desc' | 'asc';
   theme: 'auto' | 'light' | 'dark';
+  look?: 'glass' | 'paper';
+  accent?: 'amber' | 'apricot' | 'lilac';
   hand: 'right' | 'left';
   tint: 'off' | 'on';
   formatBar?: boolean;
