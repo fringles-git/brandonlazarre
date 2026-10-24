@@ -128,9 +128,9 @@ export function radioKeys(e: React.KeyboardEvent<HTMLElement>) {
   target.click();
 }
 
-type PrefKey = 'view' | 'theme' | 'hand' | 'tint' | 'sort' | 'dir';
+type PrefKey = 'view' | 'look' | 'accent' | 'theme' | 'hand' | 'tint' | 'sort' | 'dir';
 export function Segmented<K extends PrefKey>({ pref, label, options }: { pref: K; label: string; options: [Prefs[K], ReactNode][] }) {
-  const value = useStore(s => s.prefs[pref]), at = Math.max(0, options.findIndex(([v]) => v === value));
+  const value = useStore(s => s.prefs[pref] ?? options[0][0]), at = Math.max(0, options.findIndex(([v]) => v === value));
   return (
     <>
       <h4 id={'seg-' + pref}>{label}</h4>
@@ -166,6 +166,12 @@ export function Option<K extends keyof Prefs>({ pref, value, label, note }: { pr
 }
 export const THEMES: [Prefs['theme'], ReactNode][] = [
   ['auto', <><Icon name="themeAuto" />Auto</>], ['light', <><Icon name="themeLight" />Clair</>], ['dark', <><Icon name="themeDark" />Sombre</>],
+];
+export const LOOKS: [Prefs['look'], ReactNode][] = [['glass', 'Verre'], ['paper', 'Papier']];
+export const ACCENTS: [Prefs['accent'], ReactNode][] = [
+  ['amber', <><i className="accent-dot" aria-hidden="true" />Ambre</>],
+  ['apricot', <><i className="accent-dot" data-accent="apricot" aria-hidden="true" />Abricot</>],
+  ['lilac', <><i className="accent-dot" data-accent="lilac" aria-hidden="true" />Lilas</>],
 ];
 export const HANDS: [Prefs['hand'], ReactNode][] = [['right', 'Droitier'], ['left', 'Gaucher']];
 

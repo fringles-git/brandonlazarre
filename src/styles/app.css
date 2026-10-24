@@ -754,6 +754,7 @@ body.is-editing .editor-text { scroll-padding-bottom: 120px; }
 
 .atts { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
 .atts.is-multi { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.atts.is-multi > .att-audio, .atts.is-multi > .att-pdf { grid-column: 1 / -1; min-width: 0; }   /* players and file rows need the full width; photos tile */
 .att { position: relative; border-radius: var(--radius-row); overflow: hidden; background: var(--color-fill); }
 .att-image img { display: block; width: 100%; max-height: 46dvh; object-fit: contain; background: var(--color-fill); }
 .att-pdf { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 52px var(--space-3) var(--space-4); }
