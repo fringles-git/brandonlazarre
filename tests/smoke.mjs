@@ -527,6 +527,29 @@ await check('CODE-01: a write that fails is shown and retried — never a silent
   expect(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', 'the retried setting survived the reload');
 });
 
+/** Taps 21px from the control's centre on all four sides: each must land on the control, so it is touched at 44 × 44. */
+const touchMisses = (page, selector) => page.evaluate(sel => {
+  const el = document.querySelector(sel), r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  return [[-21, 0], [21, 0], [0, -21], [0, 21]]
+    .filter(([dx, dy]) => document.elementFromPoint(x + dx, y + dy)?.closest(sel) !== el)
+    .map(([dx, dy]) => `${sel} misses ${dx || dy > 0 ? '+' : ''}${dx || dy}px on ${dx ? 'x' : 'y'}`.replace('+-', '-'));
+}, selector);
+
+await check('TAP-01: quiet controls are drawn small but touched at 44px (⋯, effacer, retour, Annuler)', async page => {
+  const misses = [...await touchMisses(page, '#note-list .card-more')];
+  await page.click('#search-button');
+  await page.fill('#search-input', 'surligneur');
+  await page.waitForSelector('.search-clear');
+  misses.push(...await touchMisses(page, '.search-clear'));
+  await page.click('.search-clear');
+  await page.keyboard.press('Escape');
+  await page.click('#nav-library');
+  await page.click('.lib-folder:has-text("Idées")');
+  await page.waitForSelector('#page-title:has-text("Idées")');
+  misses.push(...await touchMisses(page, '.back-chip'));
+  expect(!misses.length, misses.join(', '));
+});
+
 await check('select with S, delete, then undo', async page => {
   await page.focus('#note-list .card-open');
   await page.keyboard.press('s');
@@ -534,6 +557,9 @@ await check('select with S, delete, then undo', async page => {
   expect(await page.locator('.card-open[aria-pressed="true"]').count() === 1, 'the focused note is selected');
   await page.getByRole('button', { name: 'Supprimer la sélection' }).click();
   await page.waitForFunction(() => document.querySelectorAll('#note-list .card').length === 1);
+  await landed(page, '.toast');
+  const misses = await touchMisses(page, '.toast button');
+  expect(!misses.length, misses.join(', '));
   await page.getByRole('button', { name: 'Annuler', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('#note-list .card').length === 2);
 });

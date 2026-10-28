@@ -7,6 +7,12 @@ export interface Release { date: string; legacy?: string; changes: Partial<Recor
 
 const RELEASES: Omit<Release, 'version'>[] = [
   {
+    date: '2026-10-28',
+    changes: {
+      fix: ['Les petits boutons (⋯ d’une note, effacer la recherche, Bibliothèque, Annuler, lecteur, retirer une pièce jointe) se touchent sur 44 px sans changer d’apparence : un doigt qui frôle le ⋯ n’ouvre plus la note'],
+    },
+  },
+  {
     date: '2026-10-21',
     changes: {
       fix: [
