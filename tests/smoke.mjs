@@ -527,8 +527,13 @@ await check('CODE-01: a write that fails is shown and retried — never a silent
   expect(await page.evaluate(() => document.documentElement.dataset.theme) === 'dark', 'the retried setting survived the reload');
 });
 
-/** Taps 21px from the control's centre on all four sides: each must land on the control, so it is touched at 44 × 44. */
-const touchMisses = (page, selector) => page.evaluate(sel => {
+/** Taps 21px from the control's centre on all four sides: each must land on the control, so it is touched at 44 × 44.
+    Measured once every entry animation has landed: a sheet still scaling in (.94) would shrink the area below 44px. */
+const touchMisses = (page, selector) => page.evaluate(async sel => {
+  await Promise.race([
+    Promise.all(document.getAnimations().filter(a => a.effect?.getComputedTiming().endTime !== Infinity).map(a => a.finished.catch(() => {}))),
+    new Promise(done => setTimeout(done, 3000)),
+  ]);
   const el = document.querySelector(sel), r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
   return [[-21, 0], [21, 0], [0, -21], [0, 21]]
     .filter(([dx, dy]) => document.elementFromPoint(x + dx, y + dy)?.closest(sel) !== el)
