@@ -532,7 +532,7 @@ const touchMisses = (page, selector) => page.evaluate(sel => {
   const el = document.querySelector(sel), r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
   return [[-21, 0], [21, 0], [0, -21], [0, 21]]
     .filter(([dx, dy]) => document.elementFromPoint(x + dx, y + dy)?.closest(sel) !== el)
-    .map(([dx, dy]) => `${sel} misses ${dx || dy > 0 ? '+' : ''}${dx || dy}px on ${dx ? 'x' : 'y'}`.replace('+-', '-'));
+    .map(([dx, dy]) => { const d = dx || dy; return `${sel} misses ${d > 0 ? '+' : ''}${d}px on ${dx ? 'x' : 'y'}`; });
 }, selector);
 
 await check('TAP-01: quiet controls are drawn small but touched at 44px (⋯, effacer, retour, Annuler)', async page => {
@@ -612,6 +612,18 @@ if (!process.env.SKIP_ASR) await check('voice text: a recording is transcribed o
   notes.push('transcript: ' + text.trim().slice(0, 140));
 });
 
+await check('TAP-02: a voice note’s player, its remove button and the card’s play button are touched at 44px', async page => {
+  await page.setInputFiles('#audio-input', voice);
+  await page.waitForSelector('.editor.open .player-btn');
+  await landed(page, '.editor');
+  const misses = [...await touchMisses(page, '.player-btn'), ...await touchMisses(page, '.att-remove')];
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#note-list .wave-play');
+  await landed(page, '#note-list');
+  misses.push(...await touchMisses(page, '#note-list .wave-play'));
+  expect(!misses.length, misses.join(', '));
+});
+
 await check('photo text: a photo is read on the device and its words are stored', async page => {
   await page.click('#nav-settings');
   await page.getByRole('switch', { name: /Texte dans les photos/ }).click();
@@ -626,6 +638,9 @@ await check('photo text: a photo is read on the device and its words are stored'
 await check('live text: with the setting off, one tap reads a photo and adds its words to the note', async page => {
   await page.setInputFiles('#image-input', photo);
   await page.waitForSelector('.editor.open .att-live');
+  await landed(page, '.editor');
+  const misses = await touchMisses(page, '.att-remove');
+  expect(!misses.length, misses.join(', '));
   await page.click('.att-live');
   await page.waitForSelector('.toast:has-text("Texte ajouté")', { timeout: 90000 });
   const body = await page.evaluate(() => document.querySelector('textarea.editor-text').value);
