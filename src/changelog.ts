@@ -9,6 +9,12 @@ const RELEASES: Omit<Release, 'version'>[] = [
   {
     date: '2026-10-28',
     changes: {
+      fix: ['Le dossier au-dessus du titre et les couleurs de dossier se touchent sur 44 px : le titre ne se fait plus voler un toucher, deux couleurs voisines non plus'],
+    },
+  },
+  {
+    date: '2026-10-28',
+    changes: {
       fix: ['Les petits boutons (⋯ d’une note, effacer la recherche, Bibliothèque, Annuler, lecteur, retirer une pièce jointe) se touchent sur 44 px sans changer d’apparence : un doigt qui frôle le ⋯ n’ouvre plus la note'],
     },
   },
