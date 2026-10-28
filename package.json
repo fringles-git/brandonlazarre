@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "smoke": "npm run build && node tests/sw-regression.mjs && node tests/smoke.mjs",
+    "smoke": "node tests/tokens.mjs && npm run build && node tests/sw-regression.mjs && node tests/smoke.mjs",
     "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {

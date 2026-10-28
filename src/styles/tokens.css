@@ -129,6 +129,25 @@
   --weight-label: 650;
   --leading: 1.45;
 
+  /* Depth: one scale, nothing else picks a z-index
+     inside a component (its own stacking context): under · over · over-2 · lifted
+     across the app, bottom to top: dock · recording pill · editor · scrim · sheet · menu's scrim · over the scrim (dock, full-screen sheet) · menu · toast · tour */
+  --z-under-2: -2;
+  --z-under: -1;
+  --z-over: 1;
+  --z-over-2: 2;
+  --z-lifted: 5;
+  --z-dock: 20;
+  --z-rec: calc(var(--z-dock) + 1);
+  --z-editor: 30;
+  --z-scrim: 40;
+  --z-sheet: calc(var(--z-scrim) + 1);
+  --z-layer-scrim: calc(var(--z-sheet) + 1);
+  --z-over-scrim: calc(var(--z-layer-scrim) + 1);
+  --z-layer: calc(var(--z-over-scrim) + 1);
+  --z-toast: 60;
+  --z-tour: 70;
+
   /* Motion */
   --ease: cubic-bezier(.32, .72, 0, 1);
   --ease-out: cubic-bezier(.2, .8, .2, 1);
