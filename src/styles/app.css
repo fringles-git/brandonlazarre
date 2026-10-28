@@ -579,7 +579,8 @@ body[data-hand='left'] :is(.layer, .sheet) { transform-origin: bottom left; }
 .inline-form button { display: grid; place-items: center; --h: 46px; width: var(--h); height: var(--h); flex: none; border-radius: calc(var(--h) / var(--radius-ratio)); background: var(--color-text); color: var(--color-bg); }
 .pin-input { letter-spacing: .5em; text-align: center; font-size: var(--text-xl) !important; }
 .swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-3) 52px; }
-.swatch { display: grid; place-items: center; --h: 34px; width: var(--h); height: var(--h); border-radius: calc(var(--h) / var(--radius-ratio)); background: var(--folder-dot); color: #fff; }
+.swatch { display: grid; place-items: center; --h: 36px;   /* + the 8px gap: one swatch per 44px, touch areas side by side */
+  width: var(--h); height: var(--h); border-radius: calc(var(--h) / var(--radius-ratio)); background: var(--folder-dot); color: #fff; }
 .swatch svg { width: 16px; height: 16px; stroke-width: 2.5; opacity: 0; }
 .swatch[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--color-card-solid), 0 0 0 4px var(--folder-dot); }
 .swatch[aria-pressed='true'] svg { opacity: 1; }
@@ -722,6 +723,7 @@ body[data-hand='left'] .tiles { flex-direction: row-reverse; }   /* Note stays n
 .folder-chip {   /* where the note lives, above its title; tap to move it */
   align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; margin-top: var(--space-2);
   --h: 32px; min-height: var(--h); padding: 0 12px; border-radius: calc(var(--h) / var(--radius-ratio));
+  margin-bottom: calc((var(--tap) - var(--h)) / 2);   /* the title starts where the chip's 44px touch ends */
   background: var(--color-fill); font-size: var(--text-xs); font-weight: 600; color: var(--color-text-muted);
 }
 .folder-chip svg { width: 15px; height: 15px; }
@@ -1085,8 +1087,8 @@ body[data-hand='left'] .format-strip { transform-origin: right; }
   .back-chip, .folder-chip, .swatch, .card-more, .search-clear, .player-btn, .player-play, .wave-play, .first-action, .starter):active:not(:disabled) { transform: scale(.94); }
 :where(.island .icon-btn, .tab-btn, .action-btn, .row:not(.row-static), .option):active:not(:disabled) { background-color: var(--color-fill-strong); }
 /* Drawn small, touched at --tap: an invisible area centred on a quiet control takes the finger at 44px, the drawing stays */
-:where(.card-more, .wave-play, .search-clear, .back-chip, .player-btn, .att-remove, .toast button) { position: relative; }
-:where(.card-more, .wave-play, .search-clear, .back-chip, .player-btn, .att-remove, .toast button)::after {
+:where(.card-more, .wave-play, .search-clear, .back-chip, .folder-chip, .swatch, .player-btn, .att-remove, .toast button) { position: relative; }
+:where(.card-more, .wave-play, .search-clear, .back-chip, .folder-chip, .swatch, .player-btn, .att-remove, .toast button)::after {
   content: ''; position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: max(100%, var(--tap)); height: max(100%, var(--tap));
 }
 @media (hover: hover) and (pointer: fine) {

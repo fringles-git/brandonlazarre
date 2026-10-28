@@ -9,6 +9,7 @@ const RELEASES: Omit<Release, 'version'>[] = [
   {
     date: '2026-10-28',
     changes: {
+      fix: ['Le dossier au-dessus du titre et les couleurs de dossier se touchent sur 44 px : le titre ne se fait plus voler un toucher, deux couleurs voisines non plus'],
       fix: ['La barre du téléphone prend la couleur du fond de Notes : sombre en thème Sombre même si le téléphone est en clair, crème avec le style Papier'],
     },
   },

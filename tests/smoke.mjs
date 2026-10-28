@@ -555,6 +555,25 @@ await check('TAP-01: quiet controls are drawn small but touched at 44px (⋯, ef
   expect(!misses.length, misses.join(', '));
 });
 
+await check('TAP-03: the folder chip and the folder colours are touched at 44px; the title and the next colour keep theirs', async page => {
+  await openNote(page, 'Comment utiliser');
+  await landed(page, '.editor');
+  const misses = await touchMisses(page, '.folder-chip');
+  const title = await page.evaluate(() => {   // the title's first pixel row, under the chip, still focuses the title
+    const chip = document.querySelector('.folder-chip').getBoundingClientRect(), t = document.querySelector('.editor-title').getBoundingClientRect();
+    return { gap: t.top - chip.bottom, hit: document.elementFromPoint(chip.left + 8, t.top + 1)?.className };
+  });
+  expect(title.hit === 'editor-title', 'just under the chip: ' + title.hit);
+  expect(title.gap >= 6, 'title starts ' + title.gap + 'px under the chip, inside its touch area');
+  await page.keyboard.press('Escape');
+  await page.click('#nav-library');
+  await page.click('[aria-label="Modifier les dossiers et collections"]');
+  await page.click('[aria-label^="Couleur de Idées"]');
+  await page.waitForSelector('.swatch');
+  for (let i = 1; i <= await page.locator('.swatch').count(); i++) misses.push(...await touchMisses(page, `.swatch[data-color="${i}"]`));
+  expect(!misses.length, misses.join(', '));
+});
+
 await check('select with S, delete, then undo', async page => {
   await page.focus('#note-list .card-open');
   await page.keyboard.press('s');
