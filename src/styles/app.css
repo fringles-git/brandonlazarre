@@ -1084,6 +1084,11 @@ body[data-hand='left'] .format-strip { transform-origin: right; }
 :where(.icon-btn, .tab-btn, .action-btn, .fab, .chip, .pill, .tile, .lib-tile, .lib-folder, .lib-tag, .widget, .btn, .text-btn,
   .back-chip, .folder-chip, .swatch, .card-more, .search-clear, .player-btn, .player-play, .wave-play, .first-action, .starter):active:not(:disabled) { transform: scale(.94); }
 :where(.island .icon-btn, .tab-btn, .action-btn, .row:not(.row-static), .option):active:not(:disabled) { background-color: var(--color-fill-strong); }
+/* Drawn small, touched at --tap: an invisible area centred on a quiet control takes the finger at 44px, the drawing stays */
+:where(.card-more, .wave-play, .search-clear, .back-chip, .player-btn, .att-remove, .toast button) { position: relative; }
+:where(.card-more, .wave-play, .search-clear, .back-chip, .player-btn, .att-remove, .toast button)::after {
+  content: ''; position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: max(100%, var(--tap)); height: max(100%, var(--tap));
+}
 @media (hover: hover) and (pointer: fine) {
   :where(.icon-btn, .tab-btn, .action-btn, .text-btn, .row:not(.row-static), .option, .back-chip, .card-more, .search-clear):hover:not(:disabled) { background-color: var(--color-fill); }
   :where(.chip, .pill, .folder-chip, .btn:not(.primary), .player-btn, .lib-tag):hover:not(:disabled) { background-color: var(--color-fill-strong); }
