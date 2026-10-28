@@ -675,4 +675,7 @@ await browser.close();
 server.httpServer.close();
 for (const [s, name, why] of results) console.log(`${s.padEnd(4)} ${name}${why ? ' — ' + why : ''}`);
 for (const n of notes) console.log('     ' + n);
+// In GitHub Actions a failure also becomes an annotation: readable on the run page and through the API, without the log
+if (process.env.GITHUB_ACTIONS) for (const [s, name, why] of results) if (s === 'FAIL')
+  console.log(`::error title=smoke::${`${name} — ${why}`.replace(/%/g, '%25').replace(/\r?\n/g, '%0A')}`);
 process.exit(results.some(r => r[0] === 'FAIL') ? 1 : 0);
