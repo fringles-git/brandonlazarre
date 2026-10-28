@@ -59,6 +59,18 @@ function useInstall() {
   }, []);
 }
 
+/** The browser and system bars take the app's ground (--color-bg, so the look counts): for each scheme while the theme
+    follows the device, the chosen one's for both otherwise. index.html's two tags carry the default look until then. */
+function syncThemeColor() {
+  const probe = document.body.appendChild(document.createElement('i'));
+  probe.style.cssText = 'position: fixed; visibility: hidden; background: var(--color-bg)';
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    probe.style.colorScheme = document.documentElement.dataset.theme ?? (meta.media.includes('dark') ? 'dark' : 'light');
+    meta.content = getComputedStyle(probe).backgroundColor;
+  }
+  probe.remove();
+}
+
 /** Mirrors preferences and modes onto <html>/<body> for CSS. */
 function useDocumentState() {
   const s = useStore(useShallow(s => ({
@@ -79,6 +91,7 @@ function useDocumentState() {
     body.classList.toggle('layer-open', s.layer);
     body.classList.toggle('sheet-open', s.sheet);
   });
+  useEffect(syncThemeColor, [s.theme, s.look]);
   useEffect(() => {
     try { localStorage.setItem('notes:look', s.look); localStorage.setItem('notes:accent', s.accent); localStorage.setItem('notes:theme', s.theme); } catch { /* private mode: applies once the app loads */ }
   }, [s.look, s.accent, s.theme]);

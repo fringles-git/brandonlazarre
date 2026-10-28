@@ -9,6 +9,12 @@ const RELEASES: Omit<Release, 'version'>[] = [
   {
     date: '2026-10-28',
     changes: {
+      fix: ['La barre du téléphone prend la couleur du fond de Notes : sombre en thème Sombre même si le téléphone est en clair, crème avec le style Papier'],
+    },
+  },
+  {
+    date: '2026-10-28',
+    changes: {
       fix: ['Les petits boutons (⋯ d’une note, effacer la recherche, Bibliothèque, Annuler, lecteur, retirer une pièce jointe) se touchent sur 44 px sans changer d’apparence : un doigt qui frôle le ⋯ n’ouvre plus la note'],
     },
   },
