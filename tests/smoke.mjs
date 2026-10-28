@@ -652,6 +652,24 @@ await check('live text: with the setting off, one tap reads a photo and adds its
   expect(/Troyes/i.test(body), 'the photo\'s words are in the note: ' + body.slice(0, 80));
 });
 
+await check('PWA-01: the system bars take the app’s ground — device scheme, chosen theme, Papier; the manifest pins none', async page => {
+  const bars = () => page.evaluate(() => [...document.querySelectorAll('meta[name="theme-color"]')].map(m => m.media + ' ' + m.content).join(' · '));
+  const want = (light, dark) => `(prefers-color-scheme: light) ${light} · (prefers-color-scheme: dark) ${dark}`;
+  const glass = ['rgb(238, 240, 246)', 'rgb(8, 9, 12)'], paper = ['rgb(247, 244, 236)', 'rgb(18, 17, 16)'];
+  expect(await bars() === want(...glass), 'Auto, Verre: ' + await bars());
+  await page.click('#nav-settings');
+  await page.getByRole('radio', { name: 'Sombre' }).click();
+  await page.waitForFunction(() => document.querySelector('meta[name="theme-color"]').content === 'rgb(8, 9, 12)');
+  expect(await bars() === want(glass[1], glass[1]), 'Sombre on a light device: ' + await bars());
+  await page.getByRole('radio', { name: 'Papier' }).click();
+  await page.waitForFunction(() => document.querySelector('meta[name="theme-color"]').content === 'rgb(18, 17, 16)');
+  await page.getByRole('radio', { name: 'Auto' }).click();
+  await page.waitForFunction(() => document.querySelector('meta[name="theme-color"]').content === 'rgb(247, 244, 236)');
+  expect(await bars() === want(...paper), 'Auto, Papier: ' + await bars());
+  const manifest = await page.evaluate(() => fetch('./manifest.webmanifest').then(r => r.json()));
+  expect(!('theme_color' in manifest), 'the manifest pins no theme_color (Chromium ignores a dark one since 128)');
+});
+
 await check('dark theme: dark ground from the first frame', async page => {
   const bg = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
   expect(bg === 'rgb(8, 9, 12)', 'html background ' + bg);
