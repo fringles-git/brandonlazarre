@@ -1,5 +1,5 @@
 /** The note editor: a full-height glass sheet. Formatted view until touched; every tool sits at the bottom. */
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { Attachment, Note } from '../types';
 import { CONFIG, DAY, TEMPLATES } from '../config';
@@ -10,11 +10,14 @@ import {
   applyFormat, applyTemplate, backToReading, caretFormat, closeEditor, editAt, editField, editorRefs, extractSelection, FORMAT_TOOLS, onEditorKey,
   open, openImport, openLayer, openLink, openNoteMenu, openPicker, patchEditor, removeAtt, setTab, toast, toggleFormatBar, toggleOpenCheck,
 } from '../actions';
+import { insertTable } from '../tables';
 import { addAttText, attText, audioRate, cycleRate, editorAudios, openMap, pauseOthers, startStudy, toCalendar } from '../features';
 import { clock, dayOrTime, eventDate, finePointer, goUrl, isToday, MOD, openUrl, plural, rate } from '../utils';
 import { Chip, FolderTag, Formatted } from './kit';
 import { Icon } from './icons';
 import { pdfMeta } from './List';
+
+const TablePanel = lazy(() => import('./Table').then(m => ({ default: m.TablePanel })));
 
 /** In the note's top bar: shows while typing and for a moment after saving, then fades (CSS); a failure stays. */
 function SaveStatus() {
@@ -156,6 +159,7 @@ function FormatStrip({ state }: { state: FormatState | null }) {
           </button>
         );
       })}
+      <button className="icon-btn" onClick={insertTable} aria-label="Insérer un tableau"><Icon name="table" /></button>
     </div>
   );
 }
@@ -190,7 +194,7 @@ export function Editor() {
   if (live) last.current = live;
   const note = live || last.current;
   const s = useStore(useShallow(s => ({
-    reading: s.editor.reading, attWarn: s.editor.attWarn, focus: s.editor.focus, query: s.query, sheet: !!s.sheet, formatBar: !!s.prefs.formatBar,
+    reading: s.editor.reading, attWarn: s.editor.attWarn, focus: s.editor.focus, cell: s.editor.cell !== null, query: s.query, sheet: !!s.sheet, formatBar: !!s.prefs.formatBar,
   })));
   const title = useRef<HTMLInputElement>(null), body = useRef<HTMLTextAreaElement>(null);
   const [selected, setSelected] = useState(false), [format, setFormat] = useState<FormatState | null>(null);
@@ -225,7 +229,7 @@ export function Editor() {
 
   const onViewClick = (e: React.MouseEvent) => {
     const t = e.target as HTMLElement;
-    if (t.closest('.check-hit, .note-found') || trashed) return;
+    if (t.closest('.check-hit, .note-found, .tbl-wrap') || trashed) return;   // a table's cells are edited in place
     const link = t.closest('.wiki-link');
     if (link) return openLink(link.textContent || '');
     const tag = t.closest<HTMLElement>('.md-tag');
@@ -270,17 +274,19 @@ export function Editor() {
           <div className="editor-text editor-view" id="note-view" tabIndex={0} role="document" aria-label="Note mise en forme : Entrée pour modifier"
             onKeyDown={e => { if (e.key === 'Enter' && !e.defaultPrevented && e.target === e.currentTarget) { e.preventDefault(); editAt(null); } }}
             onClick={onViewClick}>
-            <Formatted body={note.body} query={s.query} lines onToggle={toggleOpenCheck} />
+            <Formatted body={note.body} query={s.query} lines onToggle={toggleOpenCheck} editTables={!trashed} />
             <Found note={note} />
           </div>
         )}
       </div>
       <div className="editor-dock" id="format-bar">
+        {s.reading && s.cell && !trashed && <Suspense fallback={null}><TablePanel /></Suspense>}
         <div className="thumb-row">
           {formatting ? <FormatStrip state={format} /> : !trashed && (
             <div className="island glass" role="toolbar" aria-label="Outils de la note">
               <button className="icon-btn" onClick={toggleFormatBar} aria-label="Mise en forme" aria-pressed="false"><span className="glyph" aria-hidden="true">Aa</span></button>
               <button className="icon-btn" onClick={() => applyFormat('check')} aria-label="Case à cocher" aria-pressed={format?.kind === 'check'}><Icon name="checklist" /></button>
+              <button className="icon-btn" onClick={insertTable} aria-label="Insérer un tableau"><Icon name="table" /></button>
               <button className="icon-btn" onClick={() => openImport('open')} aria-label="Joindre une photo, un audio ou un PDF" aria-haspopup="dialog"><Icon name="attach" /></button>
               {selected && !s.reading && <button className="icon-btn" onClick={extractSelection} aria-label="Créer une note avec la sélection"><Icon name="extract" /></button>}
             </div>
