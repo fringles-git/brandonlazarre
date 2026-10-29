@@ -30,7 +30,7 @@ export function TableEditor({ data, line }: { data: TableData; line: number }) {
     if (input && document.activeElement !== input) input.focus({ preventScroll: true });
     const frame = requestAnimationFrame(() => reveal(input ?? null));   // after the panel has been laid out
     return () => cancelAnimationFrame(frame);
-  }, [sel?.r, sel?.c, line]);
+  }, [sel?.r, sel?.c, line, data.head]);   // the header toggle moves row 0 between thead and tbody: a new input
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>, p: Pos) => {
     if (e.nativeEvent.isComposing) return;

@@ -1,7 +1,7 @@
 /** Notes' light Markdown: line kinds, inline marks, checklists, links, tags, flashcards, detected entities. Pure functions. */
 import type { Flashcard, Note } from './types';
 import { CONFIG, DAY } from './config';
-import { plainTables } from './table';
+import { isTableJson, plainTables } from './table';
 
 /* ---------- Checklists ---------- */
 const CHECK = /^- \[( |x|X)\] (.*)$/;
@@ -245,8 +245,8 @@ export const backlinks = (note: Note, notes: Note[]) => {
 
 const CARD = /^(?:- (?:\[[ xX]\] )?)?(.+?)\s+::\s+(.+)$/;
 export const flashcards = (body: string): Flashcard[] =>
-  body.split('\n').flatMap((line, i) => {
-    const m = line.match(CARD);
+  body.split('\n').flatMap((line, i, lines) => {
+    const m = isTableJson(lines, i) ? null : line.match(CARD);   // a table's JSON line is not a card
     return m ? [{ q: m[1].trim(), a: m[2].trim(), line: i, key: m[1].trim().toLowerCase() }] : [];
   });
 export const dueCards = (n: Note, now = Date.now()) => {

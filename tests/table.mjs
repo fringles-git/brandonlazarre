@@ -1,7 +1,7 @@
 /** Table blocks, without a browser: operations (merges first), selection clamping, the note block, Markdown out and in. */
 import assert from 'node:assert/strict';
 import {
-  addCol, addRow, canMerge, clamp, createTable, cycleAlign, exportTables, importTables, insertTableAt, owner, parseTable, plainTables,
+  addCol, addRow, canMerge, clamp, createTable, cycleAlign, exportTables, importTables, isTableJson, insertTableAt, owner, parseTable, plainTables,
   removeCol, removeRow, setTableAt, setText, tableAt, toFence, toggleHead, toggleMerge,
 } from '../src/table.ts';
 
@@ -186,5 +186,17 @@ assert.equal(cycleAlign(createTable(), 0).align[0], 'center');
 assert.equal(importTables('a | b\nno delimiter row'), 'a | b\nno delimiter row', 'not every pipe is a table');
 assert.equal(importTables('```\n| A |\n|---|\n```'), '```\n| A |\n|---|\n```', 'a table inside a code block stays text');
 assert.equal(exportTables('no table here'), 'no table here');
+
+/* ---- review findings: adjacent tables, flashcards ---- */
+{
+  const a = setText(createTable(2, 1), { r: 0, c: 0 }, 'A'), b2 = setText(createTable(3, 1), { r: 0, c: 0 }, 'B');
+  const body = toFence(a) + '\n' + toFence(b2);
+  const back = importTables(exportTables(body)).split('\n').filter(Boolean);
+  assert.deepEqual([tableAt(back, 0), tableAt(back, 3)], [a, b2], 'two tables in a row survive an export and an import');
+}
+{
+  const lines = ['x', ...toFence(setText(createTable(1, 1), { r: 0, c: 0 }, 'q :: a')).split('\n'), 'y'];
+  assert.deepEqual(lines.map((_, i) => isTableJson(lines, i)), [false, false, true, false, false]);
+}
 
 console.log('ok   table: operations, merges, block, Markdown out and in');

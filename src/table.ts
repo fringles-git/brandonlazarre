@@ -109,6 +109,8 @@ export function parseTable(json: string): TableData | null {
 }
 /** The table whose block starts at lines[i] (three lines long), or null. */
 export const tableAt = (lines: string[], i: number): TableData | null => (lines[i] === FENCE && lines[i + 2] === CLOSE ? parseTable(lines[i + 1]) : null);
+/** True for the JSON line in the middle of a table block. */
+export const isTableJson = (lines: string[], i: number) => lines[i - 1] === FENCE && lines[i + 1] === CLOSE && !!parseTable(lines[i]);
 export const toFence = (d: TableData) => [FENCE, JSON.stringify(d), CLOSE].join('\n');
 
 /** Replaces the block at `line` (null removes it). */
@@ -123,12 +125,18 @@ export function insertTableAt(body: string, pos: number, d = createTable()) {
   return { value: before + lead + toFence(d) + '\n' + body.slice(pos), line: (before + lead).split('\n').length - 1 };
 }
 
-function mapTables(body: string, fn: (d: TableData) => string) {
+function mapTables(body: string, fn: (d: TableData) => string, apart = false) {
   if (!body.includes(FENCE)) return body;
   const lines = body.split('\n'), out: string[] = [];
+  let last = -2;   // index in `lines` of the last block's closing fence
   for (let i = 0; i < lines.length; i++) {
     const d = tableAt(lines, i);
-    if (d) { out.push(fn(d)); i += 2; } else out.push(lines[i]);
+    if (d) {
+      if (apart && last === i - 1) out.push('');   // two pipe tables in a row would read back as one
+      out.push(fn(d));
+      i += 2;
+      last = i;
+    } else out.push(lines[i]);
   }
   return out.join('\n');
 }
@@ -148,7 +156,7 @@ export function toMarkdown(d: TableData) {
   return [...(lossy(d) ? ['<!-- ' + FENCE.slice(3) + ' ' + JSON.stringify(d).replace(/-->/g, '--\\u003e') + ' -->'] : []),
     row(first), row(d.align.map(a => DELIM[a])), ...rest.map(row)].join('\n');
 }
-export const exportTables = (body: string) => mapTables(body, toMarkdown);
+export const exportTables = (body: string) => mapTables(body, toMarkdown, true);
 
 function splitRow(line: string) {
   let t = line.trim();
