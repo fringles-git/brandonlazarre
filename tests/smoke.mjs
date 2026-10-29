@@ -671,6 +671,72 @@ await check('live text: with the setting off, one tap reads a photo and adds its
   expect(/Troyes/i.test(body), 'the photo\'s words are in the note: ' + body.slice(0, 80));
 });
 
+await check('TBL-01..04: insert, type, Tab/Enter, row and column tools, merge, delete, reload keeps it', async page => {
+  const body = () => page.evaluate(() => new Promise(done => {
+    const req = indexedDB.open('NotesAppDB');
+    req.onsuccess = () => {
+      const all = req.result.transaction('notes').objectStore('notes').getAll();
+      all.onsuccess = () => done(all.result.find(n => n.title === 'Bienvenue').body);
+    };
+  }));
+  const data = async () => { await page.waitForTimeout(1100); return JSON.parse((await body()).split('\n').find(l => l.startsWith('{"v":1'))); };   // past the autosave pause
+  await openNote(page, 'Bienvenue');
+  await page.getByRole('button', { name: 'Insérer un tableau' }).click();
+  await page.waitForSelector('#note-view .tbl-in');
+  expect(await page.locator('#note-view .tbl-in').count() === 6, 'a new table is 3 columns × 2 rows');
+  expect(await page.locator('#note-view .tbl th').count() === 3, 'the first row is the header');
+  expect(await page.evaluate(() => document.activeElement?.classList.contains('tbl-in')), 'the first cell has the focus');
+  // tools: every control 44px tall, in the bottom 40% of the screen
+  const box = await page.locator('.table-tools').boundingBox(), vh = page.viewportSize().height;
+  expect(box.y >= vh * 0.6, `tools panel starts in the bottom 40% (y=${box.y})`);
+  { const m = await touchMisses(page, '.tbl-tool'); expect(!m.length, 'tools are at least 44px: ' + m); }
+  { const m = await touchMisses(page, '#note-view .tbl-in'); if (m.length) throw Error('rects ' + JSON.stringify(await page.evaluate(() => [document.querySelector('#note-view .tbl-in'), document.querySelector('.table-tools'), document.querySelector('#note-view')].map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; })))); expect(!m.length, 'cells are at least 44px: ' + m); }
+  // type, Tab, Enter
+  await page.keyboard.type('Jour');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Heure');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Lundi');
+  {
+    const d = await data();
+    expect(d.rows[0][0].t === 'Jour' && d.rows[0][1].t === 'Heure', 'Tab moved from cell to cell while typing');
+    expect(d.rows[0][2].t === 'Lundi' && d.rows[1][0].t === '', 'Enter moved on to the next cell, not into the text');
+  }
+  // Enter in the last cell adds a row
+  await page.locator('[data-rc="1:2"]').focus();
+  await page.keyboard.press('Enter');
+  expect((await data()).rows.length === 3, 'Enter in the last cell adds a row');
+  // row and column tools
+  await page.getByRole('button', { name: 'Ajouter une ligne' }).click();
+  expect((await data()).rows.length === 4, 'Ligne +');
+  await page.getByRole('button', { name: 'Supprimer la ligne' }).click();
+  expect((await data()).rows.length === 3, 'Ligne −');
+  await page.getByRole('button', { name: 'Ajouter une colonne' }).click();
+  expect((await data()).align.length === 4, 'Col. +');
+  await page.getByRole('button', { name: 'Supprimer la colonne' }).click();
+  expect((await data()).align.length === 3, 'Col. −');
+  await page.getByRole('button', { name: 'Ligne d’en-tête' }).click();
+  expect((await data()).head === false, 'En-tête off');
+  await page.getByRole('button', { name: 'Ligne d’en-tête' }).click();
+  await page.locator('[data-rc="1:0"]').focus();
+  await page.getByRole('button', { name: /Aligner la colonne/ }).click();
+  expect((await data()).align[0] === 'center', 'Aligner cycles left → center');
+  await page.getByRole('button', { name: /Fusionner/ }).click();
+  expect((await data()).rows[1][0].s === 2, 'Fusion joins the cell with its right neighbour');
+  await page.reload();
+  await page.waitForSelector('#note-list .card');
+  await openNote(page, 'Bienvenue');
+  await page.waitForSelector('#note-view .tbl-in');
+  expect(await page.locator('#note-view .tbl-in').count() === 8, 'the table (merge included) survives a reload');
+  // export
+  expect((await body()).includes('```notes-table'), 'the note keeps the table as a JSON block');
+  await page.locator('[data-rc="0:0"]').focus();
+  await page.getByRole('button', { name: 'Supprimer le tableau' }).click();
+  await page.waitForTimeout(1100);
+  expect(!(await body()).includes('notes-table'), 'Supprimer le tableau removes the block');
+  await page.waitForSelector('.table-tools', { state: 'detached' });
+});
+
 await check('PWA-01: the system bars take the app’s ground — device scheme, chosen theme, Papier; the manifest pins none', async page => {
   const bars = () => page.evaluate(() => [...document.querySelectorAll('meta[name="theme-color"]')].map(m => m.media + ' ' + m.content).join(' · '));
   const want = (light, dark) => `(prefers-color-scheme: light) ${light} · (prefers-color-scheme: dark) ${dark}`;

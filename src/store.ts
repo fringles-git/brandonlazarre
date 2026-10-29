@@ -1,9 +1,10 @@
 /** App state (Zustand) and the derived selectors every view shares. */
 import { create } from 'zustand';
-import type { Collection, Layer, Note, Prefs, SheetMode, StudyItem, Toast } from './types';
+import type { Collection, Layer, Note, Prefs, SheetMode, StudyItem, TableSel, Toast } from './types';
 import type { Vault } from './vault';
 import { DEFAULT_FOLDERS, DEFAULT_PREFS, KINDS, TAB_LABEL, type Kind } from './config';
 import { checkStats, dueCards, entities, tagsOf } from './markdown';
+import { plainTables } from './table';
 import { memoArgs } from './utils';
 
 export const EMPTY_LAYER: Omit<Layer, 'mode'> = {
@@ -39,6 +40,7 @@ export interface State {
     reading: boolean;
     snapshot: { title: string; body: string; t: number } | null;
     focus: 'title' | 'reveal' | null;
+    cell: TableSel | null;   // the table cell being edited, in the formatted view
   };
   layer: Layer;
   menuNote: number | null;
@@ -90,7 +92,7 @@ export const useStore = create<State>()(() => ({
   selecting: false,
   selection: new Set(),
   deleteArmed: false,
-  editor: { id: null, saveStatus: 'saved', lastSaved: 0, attWarn: false, reading: false, snapshot: null, focus: null },
+  editor: { id: null, saveStatus: 'saved', lastSaved: 0, attWarn: false, reading: false, snapshot: null, focus: null, cell: null },
   layer: { mode: null, ...EMPTY_LAYER },
   menuNote: null,
   sheet: null,
@@ -141,7 +143,7 @@ function inTab(n: Note, tab: string) {
   return n.folder === tab.slice(2);
 }
 const searchable = (n: Note, unlocked: boolean) =>
-  n.locked && !unlocked ? n.title : n.title + ' ' + n.body + ' ' + n.atts.filter(a => a.text).map(a => a.text).join('\n');
+  n.locked && !unlocked ? n.title : n.title + ' ' + plainTables(n.body) + ' ' + n.atts.filter(a => a.text).map(a => a.text).join('\n');
 
 export function filterNotes(notes: Note[], { tab, query, kind = null, unlocked, collections }: Filter) {
   const c = findCollection(tab, collections);

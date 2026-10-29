@@ -66,6 +66,16 @@ export const icons: Record<string, string> = {
   slides: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/>',
   hash: '<path d="M5 9h15M4 15h15M10 3L8 21M16 3l-2 18"/>',
   offline: '<path d="M7 18a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 17.6 8 4.5 4.5 0 0 1 19 16.8"/><path d="M4 4l16 16"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 10h18M3 15h18M10 10v10"/>',
+  tableHead: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9.5h18" stroke-width="3.2"/><path d="M3 15h18M10 9.5V20"/>',
+  tableRowAdd: '<rect x="4" y="3" width="16" height="10" rx="2.5"/><path d="M4 8h16M12 16v5M9.5 18.5h5"/>',
+  tableRowRemove: '<rect x="4" y="3" width="16" height="10" rx="2.5"/><path d="M4 8h16M9.5 18.5h5"/>',
+  tableColAdd: '<rect x="3" y="4" width="10" height="16" rx="2.5"/><path d="M8 4v16M16 12h5M18.5 9.5v5"/>',
+  tableColRemove: '<rect x="3" y="4" width="10" height="16" rx="2.5"/><path d="M8 4v16M16 12h5"/>',
+  tableMerge: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 12h10M7 12l2.5-2.5M7 12l2.5 2.5M17 12l-2.5-2.5M17 12l-2.5 2.5"/>',
+  alignLeft: '<path d="M4 6h16M4 12h10M4 18h13"/>',
+  alignCenter: '<path d="M4 6h16M7 12h10M5.5 18h13"/>',
+  alignRight: '<path d="M4 6h16M10 12h10M7 18h13"/>',
   hand: '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4a1.5 1.5 0 0 1 3 0v6M14 10V5.5a1.5 1.5 0 0 1 3 0V13a7 7 0 0 1-7 7h-.5a6 6 0 0 1-5-2.7L3 15a1.5 1.5 0 0 1 2.4-1.8L8 15"/>',
 };
 

@@ -3,6 +3,7 @@ import type { Attachment, AttType, Note } from './types';
 import { CONFIG } from './config';
 import { readDataUrl } from './db';
 import { headingLevel, parseInline, parseLine } from './markdown';
+import { importTables } from './table';
 import { day, loadScript } from './utils';
 
 /* ---------- Object URLs, one per blob, released when no note uses the blob ---------- */
@@ -136,7 +137,7 @@ export function splitTitle(md: string, fallback: string) {
 }
 
 export const markdownToNote = (name: string, text: string) => splitTitle(
-  text.replace(/\r\n?/g, '\n')
+  importTables(text.replace(/\r\n?/g, '\n')
     .replace(/^---\n[\s\S]*?\n---\n/, '')
     .replace(/!\[\[[^\]\n]*\]\]|!\[[^\]\n]*\]\([^)\n]*\)/g, '')
     .replace(/\[\[([^\]|\n]+)\|[^\]\n]+\]\]/g, '[[$1]]')
@@ -144,7 +145,7 @@ export const markdownToNote = (name: string, text: string) => splitTitle(
     .replace(/^#{4,6} /gm, '### ')
     .replace(/^[ \t]+(?=[-*+] |\d+[.)] )/gm, '')
     .replace(/^[*+] /gm, '- ')
-    .replace(/__([^_\n]+)__/g, '**$1**'),
+    .replace(/__([^_\n]+)__/g, '**$1**')),
   name.replace(/\.[^.]+$/, ''));
 
 const SKIP = new Set(['script', 'style', 'img', 'svg', 'figure', 'nav', 'head', 'title']);

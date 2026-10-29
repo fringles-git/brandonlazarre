@@ -7,6 +7,14 @@ export interface Release { date: string; legacy?: string; changes: Partial<Recor
 
 const RELEASES: Omit<Release, 'version'>[] = [
   {
+    date: '2026-10-29',
+    changes: {
+      new: [
+        'Tableaux dans les notes : touchez Tableau dans la barre, tapez dans les cellules (Tab et Entrée passent à la suivante), ajoutez ou retirez lignes et colonnes, fusionnez, alignez ; export et import Markdown',
+      ],
+    },
+  },
+  {
     date: '2026-10-28',
     changes: {
       fix: [

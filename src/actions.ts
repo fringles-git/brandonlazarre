@@ -243,7 +243,7 @@ export function closeEditor() {
     else if (dirty) saveNow();
   }
   dirty = false;
-  patchEditor({ id: null, snapshot: null, focus: null });
+  patchEditor({ id: null, snapshot: null, focus: null, cell: null });
   (document.activeElement as HTMLElement | null)?.blur();
 }
 
@@ -260,7 +260,7 @@ export function restoreVersion(i: number) {
 
 /** Leaves the formatted view and puts the caret at a line/offset of the source. */
 export function editAt(line: number | null, offset?: number, keepTop?: number) {
-  flushSync(() => patchEditor({ reading: false }));
+  flushSync(() => patchEditor({ reading: false, cell: null }));
   const el = editorRefs.body;
   if (!el) return;
   const lines = el.value.split('\n'), lineAt = line === null ? 0 : lines.slice(0, line).join('\n').length + +!!line;

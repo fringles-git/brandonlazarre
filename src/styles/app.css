@@ -804,6 +804,37 @@ body[data-hand='left'] .format-strip { transform-origin: right; }
 .glyph-card { font-size: 15px; letter-spacing: .02em; }
 .glyph sub { font-size: 10px; }
 
+/* ---------- Tables in notes: cells you type in, tools in a panel above the note bar ---------- */
+.tbl-wrap { max-width: 100%; margin-block: var(--space-2); overflow-x: auto; border-radius: var(--radius-control); box-shadow: inset 0 0 0 1px var(--color-line-strong); scrollbar-width: thin; }
+.tbl { width: 100%; min-width: max-content; border-collapse: collapse; font: inherit; }
+.tbl :is(th, td) { position: relative; min-width: 88px; padding: 0; border: 1px solid var(--color-line); }
+.tbl th { background: var(--color-fill); font-weight: 700; }
+.tbl .is-center { text-align: center; }
+.tbl .is-right { text-align: right; }
+.tbl.is-static :is(th, td) { padding: var(--space-2) var(--space-3); }
+.tbl-in { display: block; width: 100%; min-height: var(--tap); padding: var(--space-2) var(--space-3); border: 0; border-radius: 0; background: none; color: inherit; font: inherit; text-align: inherit; outline: none; }
+.tbl :is(th, td)[data-sel] { box-shadow: inset 0 0 0 2.5px var(--color-accent); background: color-mix(in srgb, var(--color-accent) 14%, transparent); }
+.tbl :is(th, td)[data-sel] .tbl-in { caret-color: var(--color-accent-deep); }
+
+.table-tools { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-2); }
+.table-tools-row { display: flex; gap: var(--space-2); }
+.tbl-group { display: flex; flex: 1; gap: 2px; padding: 2px; border-radius: var(--radius-control); background: var(--color-fill); }
+.tbl-group.is-danger { flex: 0 0 auto; background: none; padding: 0; }
+.tbl-tool {
+  display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: var(--tap); min-height: var(--dock-btn); padding: var(--space-1) var(--space-2); border: 0; border-radius: calc(var(--radius-control) - 2px);
+  background: none; color: var(--color-text); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer;
+}
+.tbl-tool svg { width: 22px; height: 22px; }
+.tbl-tool:active:not(:disabled) { background: var(--color-fill-strong); }
+.tbl-tool[aria-pressed='true'] { background: var(--color-accent); color: var(--color-on-accent); }
+.tbl-tool:disabled { color: var(--color-text-faint); opacity: .55; cursor: default; }
+.tbl-tool.is-danger { min-width: calc(var(--dock-btn) + var(--space-4)); color: var(--color-danger); }
+@media (forced-colors: active) {
+  .tbl :is(th, td)[data-sel] { outline: 3px solid Highlight; outline-offset: -3px; }
+  .tbl-tool[aria-pressed='true'] { outline: 2px solid Highlight; }
+}
+
 /* ---------- Toast: at the top, never a third tier over the bars at the bottom ---------- */
 .toast {
   position: fixed; z-index: var(--z-toast); left: 50%; translate: -50% 0;

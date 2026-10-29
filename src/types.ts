@@ -85,6 +85,9 @@ export interface Layer {
   resetArmed: boolean;
 }
 
+/** The selected table cell: the block's first line in the body, row, column, and the last thing said about it (read aloud). */
+export interface TableSel { line: number; r: number; c: number; say: string }
+
 export interface Toast { id: number; message: string; label: string; action: (() => void) | null; kind?: ChangeKind }
 /** One voice for state marks: new (amber), fix (red), better / on (green). */
 export type ChangeKind = 'new' | 'fix' | 'better';

@@ -1,8 +1,9 @@
 /** Shared building blocks: layers, rows, chips, inline forms, segmented controls, highlighted & formatted text. */
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { ChangeKind, Prefs } from '../types';
 import { CHANGE_KINDS } from '../config';
 import { parseInline, parseLine, TAG, headingLevel } from '../markdown';
+import { span, tableAt, type TableData } from '../table';
 import { folderColor, useStore } from '../store';
 import { setPref, submitFolder } from '../actions';
 import { wide } from '../utils';
@@ -209,11 +210,38 @@ function Inline({ text, query }: { text: string; query: string }) {
   })}</>;
 }
 
-/** Renders a note body; `lines` wraps each source line (for the editor's tap-to-edit). */
-export function Formatted({ body, query = '', lines = false, onToggle }: { body: string; query?: string; lines?: boolean; onToggle?: (line: number, on: boolean) => void }) {
-  const all = body.split('\n');
+/** A table, read only (cards, printing); the editor's cells load apart, only when a note shows a table. */
+const TableEditor = lazy(() => import('./Table').then(m => ({ default: m.TableEditor })));
+function TableView({ data, query }: { data: TableData; query: string }) {
+  const cells = (r: number) => data.rows[r].map((c, k) => {
+    if (c.s === 0) return null;
+    const Tag = data.head && r === 0 ? 'th' : 'td';
+    return <Tag key={k} scope={Tag === 'th' ? 'col' : undefined} colSpan={span(c)} className={'is-' + data.align[k]}><Inline text={c.t} query={query} /></Tag>;
+  });
+  const rows = data.rows.map((_, r) => r);
+  return (
+    <div className="tbl-wrap"><table className="tbl is-static">
+      {data.head && <thead><tr>{cells(0)}</tr></thead>}
+      <tbody>{rows.filter(r => !(data.head && r === 0)).map(r => <tr key={r}>{cells(r)}</tr>)}</tbody>
+    </table></div>
+  );
+}
+
+/** Renders a note body; `lines` wraps each source line (for the editor's tap-to-edit); `editTables` makes table cells editable. */
+export function Formatted({ body, query = '', lines = false, onToggle, editTables = false }: { body: string; query?: string; lines?: boolean; onToggle?: (line: number, on: boolean) => void; editTables?: boolean }) {
+  const all = body.split('\n'), tables = new Map<number, TableData>(), inTable = new Set<number>();
+  all.forEach((_, i) => {
+    const t = !inTable.has(i) && tableAt(all, i);
+    if (t) { tables.set(i, t); inTable.add(i + 1).add(i + 2); }   // a block is three lines: fence, JSON, fence
+  });
   let n = 0, prev = 'text';
   return <>{all.map((raw, i) => {
+    if (inTable.has(i)) return null;
+    const table = tables.get(i);
+    if (table) {
+      prev = 'text';
+      return editTables ? <Suspense key={i} fallback={<TableView data={table} query={query} />}><TableEditor data={table} line={i} /></Suspense> : <TableView key={i} data={table} query={query} />;
+    }
     const p = parseLine(raw), content = <Inline text={p.text} query={query} />;
     if (p.kind === 'number') n = prev === 'number' ? n + 1 : p.n;
     prev = p.kind;
