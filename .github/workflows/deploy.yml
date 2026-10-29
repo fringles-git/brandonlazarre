@@ -20,26 +20,67 @@ concurrency:   # one deploy at a time, in push order; a newer push to a pull req
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test-and-deploy:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write   # the deploy pushes to notes-v3-site
+      contents: read
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npx playwright-core install --with-deps chromium
+
+      - name: Restore npm and Playwright caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node22-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: |
+          npx playwright-core install --with-deps chromium || npx playwright-core install --with-deps chromium
+
       - name: Smoke test (builds dist/)
         run: npm run smoke
         env:
           SHOTS: "off"   # reference shots belong to the machine that made them
           SKIP_ASR: ${{ inputs.skip_asr && '1' || '' }}
+
+      - name: Upload dist artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          if-no-files-found: error
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/notes-v3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write   # the deploy pushes to notes-v3-site
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download tested dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
       - name: Deploy the tested build
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/notes-v3'
         run: npm run deploy -- --prebuilt
         env:
           GIT_AUTHOR_NAME: github-actions[bot]
