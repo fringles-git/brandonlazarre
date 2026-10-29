@@ -1,6 +1,7 @@
 /** Notes' light Markdown: line kinds, inline marks, checklists, links, tags, flashcards, detected entities. Pure functions. */
 import type { Flashcard, Note } from './types';
 import { CONFIG, DAY } from './config';
+import { plainTables } from './table';
 
 /* ---------- Checklists ---------- */
 const CHECK = /^- \[( |x|X)\] (.*)$/;
@@ -110,7 +111,7 @@ export const plainLine = (line: string) => {
   const p = parseLine(line);
   return (p.kind === 'bullet' ? '• ' : p.kind === 'number' ? p.n + '. ' : '') + parseInline(p.text).leaves.map(l => l.text).join('');
 };
-export const plainText = (body: string) => body.split('\n').map(plainLine).join('\n');
+export const plainText = (body: string) => plainTables(body).split('\n').map(plainLine).join('\n');
 export const wordCount = (body: string) => {
   const t = plainText(body).trim();
   return t ? t.split(/\s+/).length : 0;

@@ -4,6 +4,7 @@ import type { Vault } from './vault';
 import { CONFIG, DAY, DEFAULT_FOLDERS, HINTS, MSG, TOUR, VERSION } from './config';
 import { attFromBackup, backupBlob, getAll, normalizeNote, openDb } from './db';
 import { dueCards, flashcards, grade, hostOf, removeCardLine, URL_RE } from './markdown';
+import { exportTables } from './table';
 import { audioPeaks, epubToNotes, exportPptx, fileToAtt, htmlFileToNote, isHeavy, markdownToNote, ocrText, pdfText, releaseUrls, titleFromFile, transcribe, zip } from './media';
 import { get, noteById, openNote, set, tabFolder, tabLabel, tabNotes, type ImportPlan } from './store';
 import {
@@ -337,7 +338,7 @@ export const checkReminders = () =>
   updateNotes(get().notes.filter(n => !n.deleted && n.remind && !n.remindDone && n.remind <= Date.now()), { remindDone: true }).forEach(notify);
 
 /* ---------- Sharing & merging ---------- */
-const asText = (n: Note) => [n.title, n.body].filter(Boolean).join('\n\n');
+const asText = (n: Note) => [n.title, exportTables(n.body)].filter(Boolean).join('\n\n');
 export async function shareNotes(list: Note[]) {
   const text = list.map(asText).join('\n\n— — —\n\n'), title = list.length === 1 ? list[0].title || 'Note' : plural(list.length, 'note', 'notes');
   const files = list.flatMap(n => n.atts).filter(a => a.blob)
@@ -401,7 +402,7 @@ export function exportVault() {
       data: a.blob!, date: n.updated,
     }));
     const md = ['---', 'created: ' + iso(n.created), 'updated: ' + iso(n.updated), ...(n.pinned ? ['pinned: true'] : []), '---', '',
-      n.body.trimEnd(), ...atts.map(a => '\n![[' + a.path.slice(dir.length) + ']]')].join('\n') + '\n';
+      exportTables(n.body.trimEnd()), ...atts.map(a => '\n![[' + a.path.slice(dir.length) + ']]')].join('\n') + '\n';
     return [{ path: unique(dir + name, '.md'), data: md, date: n.updated }, ...atts];
   });
   zip(files).then(blob => {
@@ -473,7 +474,7 @@ export function openMap(center: number | null = null) {
 /* ---------- Exports & backup ---------- */
 export function exportMarkdown() {
   const title = tabLabel(get().prefs.tab), list = tabNotes();
-  const md = '# ' + title + '\n\n' + list.map(n => '## ' + (n.title || 'Sans titre') + '\n\n' + n.body.trim().replace(/^(#{1,3}) /gm, '##$1 ')
+  const md = '# ' + title + '\n\n' + list.map(n => '## ' + (n.title || 'Sans titre') + '\n\n' + exportTables(n.body.trim()).replace(/^(#{1,3}) /gm, '##$1 ')
     + (n.atts.length ? '\n\n_' + plural(n.atts.length, 'pièce jointe', 'pièces jointes') + ' (non incluses dans ce fichier)_' : '')).join('\n\n') + '\n';
   download(new Blob([md], { type: 'text/markdown' }), fileSafe(title) + '.md');
   toast(plural(list.length, 'note exportée', 'notes exportées') + '.');
