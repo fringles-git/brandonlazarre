@@ -1,10 +1,10 @@
 /* Notes — offline support. VERSION and FILES are filled at build time; a new VERSION makes the app offer "Recharger". */
-const VERSION = 'notes-20261028184501';
+const VERSION = 'notes-20261029004255';
 const SHARE_CACHE = 'notes-share';   // files shared to Notes, picked up by the app
 const EXTRAS = 'notes-extras';       // vendor/extra: big optional libraries, cached on first use, kept across updates
 const FILES = ['./', './manifest.webmanifest', './vendor/pdf.min.js', './vendor/pdf.worker.min.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png']
-  .concat(["./assets/figtree-latin-ext-wght-normal-DCwSJGxG.woff2","./assets/figtree-latin-wght-normal-D_ZTVpCC.woff2","./assets/index-CJzXtT6m.css","./assets/index-BXlTp0ry.js","./assets/Changelog-C5yVuwHu.js","./assets/changelog-BbioMW3e.js"]);
+  .concat(["./assets/figtree-latin-ext-wght-normal-DCwSJGxG.woff2","./assets/figtree-latin-wght-normal-D_ZTVpCC.woff2","./assets/index-D-izMQTx.css","./assets/index-CuP0fcfI.js","./assets/Table-Dqqrv75u.js","./assets/Changelog-BJZyw7Qi.js","./assets/changelog-DhzBBhz0.js"]);
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(FILES)));   // no skipWaiting: the app asks first
